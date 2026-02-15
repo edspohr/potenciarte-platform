@@ -109,9 +109,41 @@ The platform uses **Firebase Authentication** but syncs user roles with the Post
 
 Currently configured for local development. Production deployment to Google Cloud Run and Vercel/Firebase Hosting is planned for Phase 2.
 
-### Recent Updates (Phase 1 Fixes)
+## ✨ Features (Phase 2 & 3)
 
-- **CORS Enabled**: The backend now accepts requests from the frontend.
-- **Service Account**: robust path resolution for `firebase-service-account.json`.
-- **Type Safety**: Improved TypeScript types in `UsersService` and `AuthGuard`.
-- **Linting**: Codebase is clean and follows strict linting rules.
+### Event Management
+
+- **Dashboard**: View upcoming and past events.
+- **Create Event**: Set name, date, location, and description.
+- **Details View**: real-time stats (attendees, check-ins).
+
+### Attendee Management
+
+- **CSV Import**: Bulk upload attendees (Email, Name, RUT).
+- **List View**: Search and filter attendees.
+- **Invitations**: Generate unique QR codes and email them via SendGrid.
+
+### Check-in System
+
+- **QR Scanner**: Built-in camera scanner for rapid check-in.
+- **Manual Entry**: Fallback for lost tickets or unreadable codes.
+- **Real-time Stats**: Live updates on attendance percentage.
+
+## ⚙️ Configuration Updates
+
+**Backend (`api/.env`):**
+Add these new variables for email functionality:
+
+```env
+SENDGRID_API_KEY="SG.your_api_key..."
+SENDGRID_FROM_EMAIL="events@yourdomain.com"
+```
+
+## 🧪 Verification
+
+See `walkthrough.md` for a complete guide on how to verify all features, including:
+
+1.  Creating an event.
+2.  Uploading a test CSV.
+3.  Sending a test invitation.
+4.  Scanning the QR code to check-in.
