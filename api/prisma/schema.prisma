@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  STAFF
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  COMPLETED
+}
+
+model User {
+  id        String   @id // Firebase UID
+  email     String   @unique
+  fullName  String
+  role      Role     @default(STAFF)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Event {
+  id        String      @id @default(uuid())
+  name      String
+  date      DateTime
+  status    EventStatus @default(DRAFT)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
