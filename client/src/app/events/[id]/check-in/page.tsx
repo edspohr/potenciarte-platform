@@ -207,36 +207,36 @@ export default function CheckInPage({ params }: { params: Promise<{ id: string }
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gray-100 flex flex-col">
+      <div className="min-h-screen bg-[#09090b] flex flex-col text-white">
         {/* Header */}
-        <div className="bg-indigo-700 text-white p-4 shadow-lg sticky top-0 z-50">
-            <div className="flex justify-between items-center mb-2">
-                <Link href={`/events/${eventId}`} className="text-indigo-200 flex items-center">
+        <div className="bg-[#121214] text-white p-4 border-b border-[#27272a] shadow-2xl sticky top-0 z-50 backdrop-blur-md bg-opacity-90">
+            <div className="flex justify-between items-center mb-4">
+                <Link href={`/events/${eventId}`} className="text-zinc-400 hover:text-orange-500 transition-colors flex items-center font-medium">
                     <ArrowLeft className="h-5 w-5 mr-1" /> Exit
                 </Link>
                 <div className="flex items-center space-x-3">
-                    {syncing && <RefreshCw className="h-4 w-4 animate-spin" />}
+                    {syncing && <RefreshCw className="h-4 w-4 animate-spin text-orange-500" />}
                     {isOnline ? (
-                        <div className="flex items-center text-green-300 text-sm font-bold">
-                            <Wifi className="h-4 w-4 mr-1" /> Online
+                        <div className="flex items-center text-green-500 text-sm font-bold bg-green-500/10 px-2 py-0.5 rounded-full border border-green-500/20">
+                            <Wifi className="h-3 w-3 mr-1" /> Online
                         </div>
                      ) : (
-                        <div className="flex items-center text-red-300 text-sm font-bold">
-                            <WifiOff className="h-4 w-4 mr-1" /> Offline
+                        <div className="flex items-center text-orange-500 text-sm font-bold bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20">
+                            <WifiOff className="h-3 w-3 mr-1" /> Offline
                         </div>
                      )}
                 </div>
             </div>
-            <div className="flex space-x-2">
+            <div className="flex p-1 bg-[#09090b] rounded-lg border border-[#27272a]">
                 <button 
                     onClick={() => setActiveTab('scan')}
-                    className={`flex-1 py-2 rounded-md font-medium text-sm flex items-center justify-center ${activeTab === 'scan' ? 'bg-white text-indigo-700' : 'bg-indigo-800 text-indigo-200'}`}
+                    className={`flex-1 py-2 rounded-md font-bold text-sm flex items-center justify-center transition-all ${activeTab === 'scan' ? 'bg-orange-600 text-white shadow-lg' : 'text-zinc-500 hover:text-white'}`}
                 >
                     <Camera className="h-4 w-4 mr-2" /> Scan QR
                 </button>
                 <button 
                     onClick={() => setActiveTab('search')}
-                    className={`flex-1 py-2 rounded-md font-medium text-sm flex items-center justify-center ${activeTab === 'search' ? 'bg-white text-indigo-700' : 'bg-indigo-800 text-indigo-200'}`}
+                    className={`flex-1 py-2 rounded-md font-bold text-sm flex items-center justify-center transition-all ${activeTab === 'search' ? 'bg-orange-600 text-white shadow-lg' : 'text-zinc-500 hover:text-white'}`}
                 >
                     <Search className="h-4 w-4 mr-2" /> Search
                 </button>
@@ -248,69 +248,72 @@ export default function CheckInPage({ params }: { params: Promise<{ id: string }
             
             {/* Feedback Display */}
             {feedback && (
-                <div className={`mb-6 p-6 rounded-xl shadow-lg text-center animate-in fade-in zoom-in duration-300 ${
-                    feedback.type === 'success' ? 'bg-green-500 text-white' :
-                    feedback.type === 'warning' ? 'bg-yellow-500 text-white' :
-                    'bg-red-500 text-white'
+                <div className={`mb-6 p-6 rounded-2xl shadow-2xl text-center animate-in fade-in zoom-in duration-300 border-2 backdrop-blur-xl ${
+                    feedback.type === 'success' ? 'bg-green-500/20 border-green-500/50 text-white' :
+                    feedback.type === 'warning' ? 'bg-orange-500/20 border-orange-500/50 text-white' :
+                    'bg-red-500/20 border-red-500/50 text-white'
                 }`}>
-                    <div className="flex justify-center mb-2">
-                        {feedback.type === 'success' && <Check className="h-16 w-16" />}
-                        {feedback.type === 'warning' && <RefreshCw className="h-16 w-16" />}
-                        {feedback.type === 'error' && <X className="h-16 w-16" />}
+                    <div className="flex justify-center mb-4">
+                        {feedback.type === 'success' && <Check className="h-16 w-16 text-green-500" />}
+                        {feedback.type === 'warning' && <RefreshCw className="h-16 w-16 text-orange-500" />}
+                        {feedback.type === 'error' && <X className="h-16 w-16 text-red-500" />}
                     </div>
-                    <h2 className="text-3xl font-black uppercase tracking-wide mb-2">{feedback.message}</h2>
+                    <h2 className="text-3xl font-black uppercase tracking-widest mb-4">{feedback.message}</h2>
                     {feedback.attendee && (
-                        <div className="bg-white/20 p-3 rounded-lg backdrop-blur-sm">
-                            <p className="text-lg font-bold">{feedback.attendee.name}</p>
-                            <p className="text-sm opacity-90">{feedback.attendee.email}</p>
-                            <p className="text-xs uppercase mt-1 opacity-75">{feedback.attendee.rut}</p>
+                        <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                            <p className="text-xl font-bold">{feedback.attendee.name}</p>
+                            <p className="text-sm text-zinc-400">{feedback.attendee.email}</p>
+                            <p className="text-xs font-mono uppercase mt-2 text-orange-500/80">{feedback.attendee.rut}</p>
                         </div>
                     )}
                 </div>
             )}
 
             {activeTab === 'scan' && (
-                <div className="bg-white rounded-xl shadow-md overflow-hidden p-4">
-                     <div id="reader" className="w-full rounded-lg overflow-hidden bg-black"></div>
-                     <p className="text-center text-gray-500 text-sm mt-4">Point camera at the QR code</p>
+                <div className="bg-[#121214] rounded-2xl shadow-xl overflow-hidden p-4 border border-[#27272a]">
+                     <div id="reader" className="w-full rounded-xl overflow-hidden bg-black border border-zinc-800"></div>
+                     <p className="text-center text-zinc-500 text-sm mt-6 font-medium">Ready to scan attendees</p>
                 </div>
             )}
 
             {activeTab === 'search' && (
-                <div className="space-y-4">
-                    <input 
-                        type="search" 
-                        placeholder="Search Name, Email or RUT..." 
-                        className="w-full p-4 rounded-xl border-gray-300 shadow-sm text-lg"
-                        value={searchQuery}
-                        onChange={(e) => handleSearch(e.target.value)}
-                        autoFocus
-                    />
+                <div className="space-y-6">
+                    <div className="relative">
+                        <input 
+                            type="search" 
+                            placeholder="Search Name, Email or RUT..." 
+                            className="w-full p-4 pl-12 rounded-xl bg-[#121214] border border-[#27272a] text-white shadow-lg text-lg focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all outline-none"
+                            value={searchQuery}
+                            onChange={(e) => handleSearch(e.target.value)}
+                            autoFocus
+                        />
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
+                    </div>
                     
-                     <div className="space-y-2">
+                     <div className="space-y-3">
                         {searchResults.map(attendee => (
                             <div 
                                 key={attendee.id} 
                                 onClick={() => handleCheckIn(attendee.id)}
-                                className={`p-4 rounded-lg bg-white shadow-sm flex justify-between items-center cursor-pointer ${attendee.checkedIn ? 'opacity-60 bg-gray-50' : 'hover:bg-indigo-50 border border-transparent hover:border-indigo-200'}`}
+                                className={`p-4 rounded-xl border transition-all duration-200 flex justify-between items-center cursor-pointer shadow-sm ${attendee.checkedIn ? 'bg-[#121214]/50 border-zinc-900 opacity-60' : 'bg-[#121214] border-[#27272a] hover:border-orange-500/50 hover:bg-[#1a1a1c]'}`}
                             >
                                 <div>
-                                    <p className="font-bold text-gray-900">{attendee.name}</p>
-                                    <p className="text-sm text-gray-500">{attendee.email}</p>
+                                    <p className="font-bold text-white">{attendee.name}</p>
+                                    <p className="text-sm text-zinc-400">{attendee.email}</p>
                                 </div>
-                                <div>
+                                <div className="flex items-center">
                                     {attendee.checkedIn ? (
-                                        <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-bold">IN</span>
+                                        <div className="bg-green-500/10 text-green-500 text-xs px-2 py-1 rounded-md font-black border border-green-500/20">VALIDATED</div>
                                     ) : (
-                                        <div className="h-8 w-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600">
-                                            <Check className="h-5 w-5" />
+                                        <div className="h-10 w-10 bg-orange-500/10 rounded-full flex items-center justify-center text-orange-500 border border-orange-500/20 transform hover:scale-110 transition-transform">
+                                            <Check className="h-6 w-6" />
                                         </div>
                                     )}
                                 </div>
                             </div>
                         ))}
                         {searchQuery && searchResults.length === 0 && (
-                            <div className="text-center text-gray-500 py-8">No results found</div>
+                            <div className="text-center text-zinc-500 py-12 italic">No matching attendees found</div>
                         )}
                      </div>
                 </div>

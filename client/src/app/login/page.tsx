@@ -23,9 +23,9 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
-      <div className="bg-gray-800 p-8 rounded-lg shadow-lg w-full max-w-md">
-        <h2 className="text-3xl font-bold mb-6 text-center text-teal-400">Potenciarte Login</h2>
+    <div className="min-h-screen flex items-center justify-center bg-[#09090b] text-white">
+      <div className="bg-[#121214] p-8 rounded-lg shadow-2xl border border-[#27272a] w-full max-w-md">
+        <h2 className="text-3xl font-bold mb-6 text-center text-orange-500">Potenciarte Platform</h2>
         {error && <p className="text-red-500 mb-4">{error}</p>}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -50,7 +50,7 @@ export default function LoginPage() {
           </div>
           <button
             type="submit"
-            className="w-full bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded transition duration-200"
+            className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded transition duration-200 shadow-lg shadow-orange-900/20"
           >
             Sign In
           </button>

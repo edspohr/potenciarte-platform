@@ -12,13 +12,21 @@ function initializeFirebase() {
   if (!admin.apps.length) {
     let credential;
     try {
-      const serviceAccountPath = path.join(__dirname, '..', 'firebase-service-account.json');
+      const serviceAccountPath = path.join(
+        __dirname,
+        '..',
+        'firebase-service-account.json',
+      );
       if (fs.existsSync(serviceAccountPath)) {
-        const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8')) as ServiceAccount;
+        const serviceAccount = JSON.parse(
+          fs.readFileSync(serviceAccountPath, 'utf8'),
+        ) as ServiceAccount;
         credential = admin.credential.cert(serviceAccount);
       } else {
         // In Cloud Functions environment, specific creds might not be needed if relying on default identity
-        console.warn('Service account file not found, checking default credentials...');
+        console.warn(
+          'Service account file not found, checking default credentials...',
+        );
         credential = admin.credential.applicationDefault();
       }
     } catch (error) {
@@ -41,7 +49,7 @@ async function bootstrap() {
 // Check if running in Cloud Functions (heuristics or specific env var could be used)
 // For now, we keep bootstrap() for local dev.
 if (require.main === module) {
-  bootstrap();
+  void bootstrap();
 }
 
 // Export for Cloud Functions
@@ -55,4 +63,3 @@ export const createNestServer = async (expressInstance: express.Express) => {
   await app.init();
   return app;
 };
-

@@ -2,8 +2,7 @@
 
 
 
-import { useState, useEffect, use } from 'react';
-import { useParams } from 'next/navigation';
+import { useState, useEffect, use, useCallback } from 'react';
 import api from '../../../lib/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Event, Attendee } from '@/types';
@@ -21,21 +20,16 @@ export default function EventDetails({ params }: { params: Promise<{ id: string 
   const [uploading, setUploading] = useState(false);
   const [sending, setSending] = useState(false);
 
-  useEffect(() => {
-    fetchEventDetails();
-    fetchAttendees();
-  }, [id]);
-
-  const fetchEventDetails = async () => {
+  const fetchEventDetails = useCallback(async () => {
     try {
       const response = await api.get(`/events/${id}`);
       setEvent(response.data);
     } catch (error) {
       console.error('Error fetching event:', error);
     }
-  };
+  }, [id]);
 
-  const fetchAttendees = async () => {
+  const fetchAttendees = useCallback(async () => {
     try {
       const response = await api.get(`/events/${id}/attendees`);
       setAttendees(response.data);
@@ -44,7 +38,12 @@ export default function EventDetails({ params }: { params: Promise<{ id: string 
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    fetchEventDetails();
+    fetchAttendees();
+  }, [fetchEventDetails, fetchAttendees]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
@@ -92,32 +91,32 @@ export default function EventDetails({ params }: { params: Promise<{ id: string 
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-[#09090b] py-8 px-4 sm:px-6 lg:px-8 text-white">
         <div className="max-w-7xl mx-auto">
           <div className="mb-6">
-            <Link href="/dashboard" className="flex items-center text-indigo-600 hover:text-indigo-800">
+            <Link href="/dashboard" className="flex items-center text-orange-500 hover:text-orange-400 font-medium transition-colors">
               <ArrowLeft className="h-4 w-4 mr-1" />
               Back to Dashboard
             </Link>
           </div>
 
-          <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-8">
-            <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
+          <div className="bg-[#121214] border border-[#27272a] overflow-hidden rounded-xl mb-8 shadow-2xl">
+            <div className="px-4 py-6 sm:px-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
-                <h3 className="text-lg leading-6 font-medium text-gray-900">{event.name}</h3>
-                <p className="mt-1 max-w-2xl text-sm text-gray-500">
+                <h3 className="text-2xl font-bold text-white">{event.name}</h3>
+                <p className="mt-1 max-w-2xl text-sm text-zinc-400">
                   {new Date(event.eventDate).toLocaleDateString()} • {event.location}
                 </p>
               </div>
-              <div className="flex space-x-3">
-                <label className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 cursor-pointer">
-                  <Upload className="mr-2 h-4 w-4" />
+              <div className="flex flex-wrap gap-3">
+                <label className="inline-flex items-center px-4 py-2 border border-[#27272a] text-sm font-medium rounded-md text-zinc-300 bg-[#09090b] hover:bg-zinc-800 transition-colors cursor-pointer">
+                  <Upload className="mr-2 h-4 w-4 text-orange-500" />
                   {uploading ? 'Uploading...' : 'Import CSV'}
                   <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} disabled={uploading} />
                 </label>
                 <Link
                   href={`/events/${id}/check-in`}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700"
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-bold rounded-md shadow-lg text-white bg-green-600 hover:bg-green-700 transition-all active:scale-95"
                 >
                   <Camera className="mr-2 h-4 w-4" />
                   Check-in Mode
@@ -125,7 +124,7 @@ export default function EventDetails({ params }: { params: Promise<{ id: string 
                 <button
                   onClick={sendInvitations}
                   disabled={sending}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-bold rounded-md shadow-lg shadow-orange-950/20 text-white bg-orange-600 hover:bg-orange-700 transition-all active:scale-95 disabled:opacity-50"
                 >
                   <Mail className="mr-2 h-4 w-4" />
                   {sending ? 'Sending...' : 'Send Invitations'}
@@ -134,20 +133,20 @@ export default function EventDetails({ params }: { params: Promise<{ id: string 
             </div>
           </div>
 
-          <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-            <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
-              <h3 className="text-lg leading-6 font-medium text-gray-900">Attendees ({attendees.length})</h3>
-                <div className="text-sm text-gray-500">
-                    Checked In: <span className="font-semibold text-gray-900">{attendees.filter(a => a.checkedIn).length}</span> / {attendees.length}
+          <div className="bg-[#121214] border border-[#27272a] overflow-hidden rounded-xl shadow-2xl">
+            <div className="px-4 py-5 sm:px-6 flex justify-between items-center border-b border-[#27272a]">
+              <h3 className="text-lg font-bold text-white">Attendees ({attendees.length})</h3>
+                <div className="text-sm text-zinc-400">
+                    Checked In: <span className="font-bold text-orange-500">{attendees.filter(a => a.checkedIn).length}</span> / {attendees.length}
                 </div>
             </div>
-            <ul className="divide-y divide-gray-200">
+            <ul className="divide-y divide-[#27272a]">
               {attendees.map((attendee) => (
                 <li key={attendee.id} className="px-4 py-4 sm:px-6">
                   <div className="flex items-center justify-between">
-                    <div className="text-sm font-medium text-indigo-600 truncate">
-                      {attendee.name} <span className="text-gray-500 text-xs">({attendee.email})</span>
-                      {attendee.rut && <span className="text-gray-400 text-xs ml-2">RUT: {attendee.rut}</span>}
+                    <div className="text-sm font-bold text-white truncate">
+                      {attendee.name} <span className="text-zinc-500 text-xs font-normal">({attendee.email})</span>
+                      {attendee.rut && <span className="text-zinc-600 text-xs ml-2 font-normal">RUT: {attendee.rut}</span>}
                     </div>
                     <div className="flex items-center space-x-4">
                       <div className="flex items-center text-sm text-gray-500">
@@ -171,7 +170,7 @@ export default function EventDetails({ params }: { params: Promise<{ id: string 
                 </li>
               ))}
               {attendees.length === 0 && (
-                <li className="px-4 py-8 text-center text-gray-500">
+                <li className="px-4 py-8 text-center text-zinc-500">
                   No attendees yet. Upload a CSV to get started.
                 </li>
               )}
