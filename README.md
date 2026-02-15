@@ -108,3 +108,10 @@ The platform uses **Firebase Authentication** but syncs user roles with the Post
 ## 📦 Deployment (Phase 1)
 
 Currently configured for local development. Production deployment to Google Cloud Run and Vercel/Firebase Hosting is planned for Phase 2.
+
+### Recent Updates (Phase 1 Fixes)
+
+- **CORS Enabled**: The backend now accepts requests from the frontend.
+- **Service Account**: robust path resolution for `firebase-service-account.json`.
+- **Type Safety**: Improved TypeScript types in `UsersService` and `AuthGuard`.
+- **Linting**: Codebase is clean and follows strict linting rules.
