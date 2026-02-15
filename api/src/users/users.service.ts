@@ -7,6 +7,7 @@ export class UsersService {
   constructor(private prisma: PrismaService) {}
 
   async syncProfile(user: any): Promise<User> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { uid, email, name, picture } = user;
 
     const existingUser = await this.prisma.user.findUnique({
