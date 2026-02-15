@@ -1,5 +1,7 @@
 'use client';
 
+
+
 import { useState, useEffect, useRef, use, useCallback } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import api from '../../../../lib/api';

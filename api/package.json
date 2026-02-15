@@ -1,10 +1,13 @@
 {
-  "name": "api",
+  "main": "dist/index.js",
   "version": "0.0.1",
   "description": "",
   "author": "",
   "private": true,
   "license": "UNLICENSED",
+  "engines": {
+    "node": "22"
+  },
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
@@ -25,7 +28,7 @@
     "@nestjs/core": "^11.0.1",
     "@nestjs/mapped-types": "*",
     "@nestjs/passport": "^11.0.5",
-    "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/platform-express": "^11.1.13",
     "@prisma/client": "^5.22.0",
     "@sendgrid/mail": "^8.1.6",
     "@types/multer": "^2.0.0",
@@ -33,7 +36,9 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
     "csv-parser": "^3.2.0",
+    "express": "^4.22.1",
     "firebase-admin": "^13.6.1",
+    "firebase-functions": "^7.0.5",
     "multer": "^2.0.2",
     "passport": "^0.7.0",
     "passport-firebase-jwt": "^1.2.1",
