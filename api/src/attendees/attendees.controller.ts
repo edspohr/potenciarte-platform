@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Param, UseInterceptors, UploadedFile, UseGuards, Body } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  UseInterceptors,
+  UploadedFile,
+  UseGuards,
+  Body,
+} from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AttendeesService } from './attendees.service';
 import { FirebaseAuthGuard } from '../auth/firebase-auth.guard';
@@ -10,7 +19,10 @@ export class AttendeesController {
 
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
-  async uploadCsv(@Param('eventId') eventId: string, @UploadedFile() file: Express.Multer.File) {
+  async uploadCsv(
+    @Param('eventId') eventId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
     return this.attendeesService.processCsv(eventId, file.buffer);
   }
 
@@ -25,6 +37,11 @@ export class AttendeesController {
   @Get('stats')
   async getStats(@Param('eventId') eventId: string) {
     return this.attendeesService.getStats(eventId);
+  }
+
+  @Get('sync')
+  async getSyncData(@Param('eventId') eventId: string) {
+    return this.attendeesService.getSyncData(eventId);
   }
 
   @Get()

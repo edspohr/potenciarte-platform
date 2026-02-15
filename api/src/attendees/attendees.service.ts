@@ -15,42 +15,51 @@ interface CsvRow {
 export class AttendeesService {
   constructor(private prisma: PrismaService) {}
 
-  async processCsv(eventId: string, fileBuffer: Buffer): Promise<{ count: number; message: string }> {
+  async processCsv(
+    eventId: string,
+    fileBuffer: Buffer,
+  ): Promise<{ count: number; message: string }> {
     const attendees: Prisma.AttendeeCreateManyInput[] = [];
     const stream = Readable.from(fileBuffer.toString());
 
     return new Promise((resolve, reject) => {
       stream
         .pipe(csv())
-        .on('data', (data: any) => {
+        .on('data', (data: unknown) => {
           // Normalize keys to lowercase
+          const row = data as Record<string, unknown>;
           const normalizedData: CsvRow = {};
-          Object.keys(data).forEach((key) => {
-            const value = data[key];
-             if (typeof value === 'string') {
+          Object.keys(row).forEach((key) => {
+            const value = row[key];
+            if (typeof value === 'string') {
               normalizedData[key.toLowerCase()] = value;
-             }
+            }
           });
 
           if (normalizedData['email'] && normalizedData['name']) {
             attendees.push({
-              email: normalizedData['email'] as string,
-              name: normalizedData['name'] as string,
+              email: normalizedData['email'],
+              name: normalizedData['name'],
               rut: normalizedData['rut'] || null,
               eventId,
             });
           }
         })
-        .on('end', async () => {
-          try {
-            await this.createMany(attendees);
-            resolve({ count: attendees.length, message: 'Processed successfully' });
-          } catch (error) {
-            reject(error instanceof Error ? error : new Error(String(error)));
-          }
+        .on('end', () => {
+          void (async () => {
+            try {
+              await this.createMany(attendees);
+              resolve({
+                count: attendees.length,
+                message: 'Processed successfully',
+              });
+            } catch (error) {
+              reject(error instanceof Error ? error : new Error(String(error)));
+            }
+          })();
         })
         .on('error', (error: unknown) => {
-           reject(error instanceof Error ? error : new Error(String(error)));
+          reject(error instanceof Error ? error : new Error(String(error)));
         });
     });
   }
@@ -84,8 +93,10 @@ export class AttendeesService {
       throw new BadRequestException('Attendee does not belong to this event');
     }
 
+    // Idempotency: If already checked in, return the attendee with a specific message/status
+    // This allows offline syncs to replay without erroring out
     if (attendee.checkedIn) {
-      return { ...attendee, message: 'Already checked in' };
+      return { ...attendee, status: 'already_checked_in' };
     }
 
     return await this.prisma.attendee.update({
@@ -93,6 +104,21 @@ export class AttendeesService {
       data: {
         checkedIn: true,
         checkInTime: new Date(),
+      },
+    });
+  }
+
+  async getSyncData(eventId: string) {
+    return await this.prisma.attendee.findMany({
+      where: { eventId },
+      select: {
+        id: true,
+        eventId: true,
+        name: true,
+        email: true,
+        rut: true,
+        checkedIn: true,
+        ticketSent: true,
       },
     });
   }

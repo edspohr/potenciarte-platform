@@ -16,7 +16,9 @@ export class EventsService {
   // ... existing methods ...
 
   async sendInvitations(eventId: string) {
-    const event = await this.prisma.event.findUnique({ where: { id: eventId } });
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+    });
     if (!event) {
       throw new Error('Event not found');
     }
@@ -25,7 +27,9 @@ export class EventsService {
       where: { eventId, ticketSent: false },
     });
 
-    this.logger.log(`Found ${attendees.length} pending invitations for event ${event.name}`);
+    this.logger.log(
+      `Found ${attendees.length} pending invitations for event ${event.name}`,
+    );
 
     let sentCount = 0;
     for (const attendee of attendees) {
@@ -45,7 +49,10 @@ export class EventsService {
       }
     }
 
-    return { message: `Sent ${sentCount} invitations`, total: attendees.length };
+    return {
+      message: `Sent ${sentCount} invitations`,
+      total: attendees.length,
+    };
   }
 
   create(createEventDto: CreateEventDto) {

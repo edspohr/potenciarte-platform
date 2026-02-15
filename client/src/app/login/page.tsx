@@ -13,8 +13,12 @@ export default function LoginPage() {
     e.preventDefault();
     try {
       await signIn(email, password);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('An unexpected error occurred');
+      }
     }
   };
 

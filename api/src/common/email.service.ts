@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import * as sgMail from '@sendgrid/mail';
+import sgMail from '@sendgrid/mail';
 import * as QRCode from 'qrcode';
 
 @Injectable()
@@ -14,7 +14,12 @@ export class EmailService {
     }
   }
 
-  async sendInvitation(email: string, name: string, attendeeId: string, eventName: string) {
+  async sendInvitation(
+    email: string,
+    name: string,
+    attendeeId: string,
+    eventName: string,
+  ) {
     if (!process.env.SENDGRID_API_KEY) {
       this.logger.warn(`Skipping email to ${email} (No API Key)`);
       return false;

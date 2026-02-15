@@ -1,4 +1,10 @@
-import { IsString, IsEmail, IsOptional, IsBoolean, IsUUID } from 'class-validator';
+import {
+  IsString,
+  IsEmail,
+  IsOptional,
+  IsBoolean,
+  IsUUID,
+} from 'class-validator';
 
 export class CreateAttendeeDto {
   @IsString()
