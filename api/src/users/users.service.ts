@@ -1,14 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { User, Role } from '@prisma/client';
+import { DecodedIdToken } from 'firebase-admin/auth';
 
 @Injectable()
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
-  async syncProfile(user: any): Promise<User> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { uid, email, name, picture } = user;
+  async syncProfile(user: DecodedIdToken): Promise<User> {
+    const { uid, email, name } = user;
 
     const existingUser = await this.prisma.user.findUnique({
       where: { id: uid },
@@ -24,8 +24,8 @@ export class UsersService {
     return this.prisma.user.create({
       data: {
         id: uid,
-        email: email,
-        fullName: name || 'Unknown',
+        email: email || '',
+        fullName: (name as string) || 'Unknown',
         role,
       },
     });

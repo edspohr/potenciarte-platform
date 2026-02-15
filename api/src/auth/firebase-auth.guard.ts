@@ -6,11 +6,12 @@ import {
 } from '@nestjs/common';
 import * as admin from 'firebase-admin';
 import { Request } from 'express';
+import { RequestWithUser } from './auth.types';
 
 @Injectable()
 export class FirebaseAuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<Request>();
+    const request = context.switchToHttp().getRequest<RequestWithUser>();
     const token = this.extractTokenFromHeader(request);
 
     if (!token) {
@@ -19,9 +20,9 @@ export class FirebaseAuthGuard implements CanActivate {
 
     try {
       const decodedToken = await admin.auth().verifyIdToken(token);
-      (request as any).user = decodedToken;
+      request.user = decodedToken;
       return true;
-    } catch (error) {
+    } catch {
       throw new UnauthorizedException();
     }
   }
