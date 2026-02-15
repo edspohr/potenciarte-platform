@@ -27,10 +27,34 @@ model User {
 }
 
 model Event {
-  id        String      @id @default(uuid())
-  name      String
-  date      DateTime
-  status    EventStatus @default(DRAFT)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  id             String      @id @default(uuid())
+  name           String
+  location       String
+  description    String?
+  headerImage    String?
+  signatureImage String?
+  eventDate      DateTime
+  status         EventStatus @default(DRAFT)
+  attendees      Attendee[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Attendee {
+  id          String    @id @default(uuid()) // Critical: content of QR code
+  email       String
+  name        String
+  rut         String?
+  checkedIn   Boolean   @default(false)
+  checkInTime DateTime?
+  ticketSent  Boolean   @default(false)
+
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([email, eventId])
 }
