@@ -1,69 +1,64 @@
-# Potenciarte Event Platform
+# Potenciarte Event Platform 🚀
 
-A high-performance, offline-first web application for managing large-scale corporate events. This platform handles event management, QR-based invitations, on-site attendance validation, and digital diploma issuance.
+**A high-performance, offline-first Event Management Platform** built for handling large-scale corporate events. It seamlessly manages the entire event lifecycle: from guest list management and QR-ticket issuance via email to on-site staff check-ins with a robust Progressive Web App (PWA) that works without internet access.
 
-## 🚀 Tech Stack
+---
 
-### Architecture
+## 🏗️ Architecture & Tech Stack
 
-- **Monorepo**: Turborepo / NPM Workspaces structure.
-- **Client**: Next.js 14+ (App Router), Tailwind CSS, Lucide React.
-- **API**: NestJS (Node.js framework), Passport.js.
-- **Database**: PostgreSQL (Prisma ORM).
-- **Authentication**: Firebase Auth (Client SDK & Admin SDK).
-- **Infrastructure**: Docker (Local DB), Cloud Run (Production - Planned).
+The platform allows for a **Monorepo** structure separating the Backend API and Frontend Client.
 
-## 📂 Project Structure
+### **Backend (API)**
 
-```bash
-.
-├── api/                # NestJS Backend
-│   ├── prisma/         # Database Schema & Migrations
-│   ├── src/            # Application Logic
-│   └── firebase-service-account.json (Ignored)
-├── client/             # Next.js Frontend
-│   ├── src/app/        # App Router Pages
-│   └── src/context/    # React Contexts (Auth)
-└── docker-compose.yml  # Local PostgreSQL Setup
-```
+- **Framework**: [NestJS](https://nestjs.com/) (Node.js) - Modular and scalable architecture.
+- **Database**: [PostgreSQL](https://www.postgresql.org/) - Relational data (Events, Attendees).
+- **ORM**: [Prisma](https://www.prisma.io/) - Type-safe database access and migrations.
+- **Authentication**: Firebase Admin SDK (Verifies ID Tokens from client).
+- **Email**: SendGrid (`@sendgrid/mail`) - Transactional emails with QR codes.
+- **Utils**: `qrcode` (Generation), `csv-parser` (Bulk Import).
+
+### **Frontend (Client)**
+
+- **Framework**: [Next.js 16](https://nextjs.org/) (App Router) - Server-Side Rendering & Static Generation.
+- **Styling**: Tailwind CSS v4 & Lucide React Icons.
+- **State/Auth**: React Context + Firebase Client SDK.
+- **HTTP Client**: Axios (Configured with Interceptors).
+
+### **Staff App (PWA & Offline Protocol)**
+
+The "Check-in Mode" is a fully functional **Progressive Web App (PWA)** designed for unstable network conditions.
+
+- **Offline Storage**: [Dexie.js](https://dexie.org/) (IndexedDB Wrapper) - Stores thousands of attendees locally.
+- **Sync Strategy**: **"Offline-First, Background Sync"**.
+  1.  **Initial Load**: Downloads lightweight JSON of all attendees from `GET /events/:id/attendees/sync`.
+  2.  **Scan**: Validates ticket against **local IndexedDB** (Instant feedback < 100ms).
+  3.  **Action**: Marks attendee as `checkedIn` locally.
+  4.  **Sync**:
+      - _Online_: Pushes check-in to API immediately.
+      - _Offline_: Queues the request.
+      - _Reconnection_: Listens for `window.ononline` to flush the queue.
+
+---
 
 ## 🛠️ Prerequisites
 
-- **Node.js** v18+
-- **Docker** & Docker Compose
-- **Firebase Project** with Authentication (Email/Password) enabled.
+- **Node.js**: v18 or higher.
+- **Docker**: Required for running the local PostgreSQL database.
+- **Firebase Project**:
+  - Authentication enabled (Email/Password provider).
+  - Service Account JSON key (for Backend).
+- **SendGrid Account**: API Key for sending emails (Optional for dev, required for prod).
 
-## ⚡ Getting Started
+---
 
-### 1. Environment Setup
+## 🚀 Getting Started
 
-**Backend (`api/.env`):**
-Create a file named `.env` in the `api/` directory:
+### 1. Database Setup
 
-```env
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/potenciarte?schema=public"
-```
-
-_Note: Place your `firebase-service-account.json` key in the `api/` root directory._
-
-**Frontend (`client/.env`):**
-Create a file named `.env` in the `client/` directory with your Firebase config:
-
-```env
-NEXT_PUBLIC_FIREBASE_API_KEY=...
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=...
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
-NEXT_PUBLIC_FIREBASE_APP_ID=...
-```
-
-### 2. Run Infrastructure (Database)
-
-Start the local PostgreSQL container:
+Start the local PostgreSQL instance using Docker:
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 Initialize the database schema:
@@ -73,77 +68,133 @@ cd api
 npx prisma db push
 ```
 
-### 3. Start Development Servers
+### 2. Environment Configuration
 
-**Backend (API):**
+#### **Backend (`api/.env`)**
+
+Create `api/.env` and configure your database and SendGrid keys:
+
+```ini
+PORT=3001
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/potenciarte?schema=public"
+
+# Email Service (Optional for local dev)
+SENDGRID_API_KEY="SG.your_key_here"
+SENDGRID_FROM_EMAIL="invitaciones@yourdomain.com"
+```
+
+_Important: Place your `firebase-service-account.json` key file in the `api/` root directory._
+
+#### **Frontend (`client/.env`)**
+
+Create `client/.env` (or `.env.local`) with your Firebase Client configuration:
+
+```ini
+NEXT_PUBLIC_API_URL="http://localhost:3001"
+
+# Firebase Config
+NEXT_PUBLIC_FIREBASE_API_KEY="AIzaSy..."
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="your-project.firebaseapp.com"
+NEXT_PUBLIC_FIREBASE_PROJECT_ID="your-project"
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET="your-project.firebasestorage.app"
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="123456..."
+NEXT_PUBLIC_FIREBASE_APP_ID="1:123456..."
+```
+
+### 3. Running the Application
+
+**Start Backend:**
 
 ```bash
 cd api
 npm run start:dev
+# Server running on http://localhost:3001
 ```
 
-The API will start on `http://localhost:3000`.
-
-**Frontend (Client):**
+**Start Frontend:**
 
 ```bash
 cd client
 npm run dev
+# Client running on http://localhost:3000
 ```
 
-The Client will start on `http://localhost:3001` (or 3000 if generic).
+---
 
-## 🔐 Authentication & Roles
+## ✨ Features Guide
 
-The platform uses **Firebase Authentication** but syncs user roles with the PostgreSQL database.
+### 📅 Event Dashboard
 
-- **Admin Creation**: The **first user** to register via the frontend is automatically assigned the `ADMIN` role.
-- **Staff Access**: Subsequent users are assigned the `STAFF` role by default.
-- **Auth Flow**:
-  1.  User logs in on Frontend (Firebase Client SDK).
-  2.  Frontend sends ID Token to Backend.
-  3.  Backend verifies Token (Firebase Admin SDK).
-  4.  Backend checks/creates User in Postgres and returns Role.
+- **Create Events**: Define Name, Date, Location, and Description.
+- **Stats**: View real-time Total Attendees vs. Checked-in count.
 
-## 📦 Deployment (Phase 1)
+### 👥 Attendee Management
 
-Currently configured for local development. Production deployment to Google Cloud Run and Vercel/Firebase Hosting is planned for Phase 2.
+- **Bulk Upload**: Upload a CSV file with columns: `name`, `email`, `rut` (optional).
+- **Search**: Filter attendees by name or email.
+- **Send Tickets**: Trigger email invitations. Each email contains a **Unique QR Code** signed with the Attendee ID.
 
-## ✨ Features (Phase 2 & 3)
+### 📱 Staff Check-in App (PWA)
 
-### Event Management
+Access this mode by navigating to an event and clicking **"Check-in Mode"**.
 
-- **Dashboard**: View upcoming and past events.
-- **Create Event**: Set name, date, location, and description.
-- **Details View**: real-time stats (attendees, check-ins).
+1.  **Installable**: Add to Home Screen on iOS/Android.
+2.  **QR Scanner**: Uses device camera to scan tickets.
+3.  **Manual Search**: Type name/email to find guests without tickets.
+4.  **Feedback System**:
+    - ✅ **GREEN**: Access Granted.
+    - ⚠️ **YELLOW**: Already Checked In (Duplicate scan).
+    - ❌ **RED**: Invalid Ticket (Not found in this event).
+5.  **Offline Mode**:
+    - Disconnect internet -> Scan validation continues to work.
+    - App shows "Offline" status but functionality remains 100%.
+    - Syncs automatically when connection is restored.
 
-### Attendee Management
+---
 
-- **CSV Import**: Bulk upload attendees (Email, Name, RUT).
-- **List View**: Search and filter attendees.
-- **Invitations**: Generate unique QR codes and email them via SendGrid.
+## 📡 Key API Endpoints
 
-### Check-in System
+| Method   | Endpoint                                       | Description                                 |
+| :------- | :--------------------------------------------- | :------------------------------------------ |
+| **GET**  | `/events`                                      | List all events                             |
+| **POST** | `/events`                                      | Create new event                            |
+| **GET**  | `/events/:id/attendees`                        | List attendees (Paginated/Search)           |
+| **POST** | `/events/:id/attendees/upload`                 | Upload CSV                                  |
+| **POST** | `/events/:id/attendees/:attendeeId/send-email` | Send QR Ticket                              |
+| **GET**  | `/events/:id/attendees/sync`                   | **Lightweight JSON** for PWA Sync           |
+| **POST** | `/events/:id/attendees/check-in`               | **Idempotent** Check-in (Safe for re-tries) |
 
-- **QR Scanner**: Built-in camera scanner for rapid check-in.
-- **Manual Entry**: Fallback for lost tickets or unreadable codes.
-- **Real-time Stats**: Live updates on attendance percentage.
+---
 
-## ⚙️ Configuration Updates
+## 📦 Deployment (Production)
 
-**Backend (`api/.env`):**
-Add these new variables for email functionality:
+### Database
 
-```env
-SENDGRID_API_KEY="SG.your_api_key..."
-SENDGRID_FROM_EMAIL="events@yourdomain.com"
-```
+- Provision a managed PostgreSQL instance (e.g., AWS RDS, Google Cloud SQL, Railway, Supabase).
+- Update `DATABASE_URL` in `api/.env`.
 
-## 🧪 Verification
+### Backend
 
-See `walkthrough.md` for a complete guide on how to verify all features, including:
+- Build: `npm run build`
+- Start: `npm run start:prod`
+- Ensure `firebase-service-account.json` is available in the production environment (or start passing it via ENV variables if refactoring allows).
 
-1.  Creating an event.
-2.  Uploading a test CSV.
-3.  Sending a test invitation.
-4.  Scanning the QR code to check-in.
+### Frontend
+
+- Build: `npm run build`
+- Start: `npm run start`
+- **PWA**: The build process automatically generates the Service Worker (`sw.js`) and `workbox` files in `public/`.
+
+---
+
+## 🤝 Contributing
+
+1.  Fork the repository.
+2.  Create a feature branch (`git checkout -b feature/amazing-feature`).
+3.  Commit changes (`git commit -m 'feat: Add amazing feature'`).
+4.  Push to branch (`git push origin feature/amazing-feature`).
+5.  Open a Pull Request.
+
+---
+
+**Developed by [Sporh Solutions]**
