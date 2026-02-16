@@ -63,4 +63,45 @@ export class EmailService {
       return false;
     }
   }
+  async sendDiploma(
+    email: string,
+    name: string,
+    eventName: string,
+    pdfBuffer: Buffer,
+  ) {
+    if (!process.env.SENDGRID_API_KEY) {
+      this.logger.warn(`Skipping diploma email to ${email} (No API Key)`);
+      return false;
+    }
+
+    try {
+      const msg = {
+        to: email,
+        from: process.env.SENDGRID_FROM_EMAIL || 'noreply@potenciarte.com',
+        subject: `Tu Diploma de ${eventName}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>¡Felicitaciones ${name}!</h2>
+            <p>Gracias por asistir a <strong>${eventName}</strong>.</p>
+            <p>Adjunto encontrarás tu diploma de participación.</p>
+          </div>
+        `,
+        attachments: [
+          {
+            content: pdfBuffer.toString('base64'),
+            filename: `Diploma-${eventName}.pdf`,
+            type: 'application/pdf',
+            disposition: 'attachment',
+          },
+        ],
+      };
+
+      await sgMail.send(msg);
+      this.logger.log(`Diploma email sent to ${email}`);
+      return true;
+    } catch (error) {
+      this.logger.error(`Error sending diploma to ${email}:`, error);
+      return false;
+    }
+  }
 }

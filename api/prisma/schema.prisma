@@ -37,6 +37,7 @@ model Event {
   signatureImage String?
   eventDate      DateTime
   status         EventStatus @default(DRAFT)
+  diplomaTemplateUrl String? // Path to the uploaded PDF template
   attendees      Attendee[]
 
   createdAt DateTime @default(now())
@@ -51,6 +52,7 @@ model Attendee {
   checkedIn   Boolean   @default(false)
   checkInTime DateTime?
   ticketSent  Boolean   @default(false)
+  diplomaSent Boolean   @default(false)
 
   eventId String
   event   Event  @relation(fields: [eventId], references: [id])

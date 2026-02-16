@@ -42,6 +42,7 @@
     "multer": "^2.0.2",
     "passport": "^0.7.0",
     "passport-firebase-jwt": "^1.2.1",
+    "pdf-lib": "^1.17.1",
     "qrcode": "^1.5.4",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"

@@ -7,6 +7,7 @@ export interface Event {
   signatureImage?: string;
   eventDate: string;
   status: 'DRAFT' | 'PUBLISHED' | 'COMPLETED';
+  diplomaTemplateUrl?: string;
   createdAt: string;
   updatedAt: string;
   _count: {
@@ -19,8 +20,11 @@ export interface Attendee {
   email: string;
   name: string;
   rut?: string;
-  ticketSent: boolean;
   checkedIn: boolean;
   checkInTime?: string;
+  ticketSent: boolean;
+  diplomaSent: boolean;
   eventId: string;
+  createdAt: string;
+  updatedAt: string;
 }
