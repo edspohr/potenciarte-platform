@@ -1,38 +1,49 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../common/email.service';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
-import * as fs from 'fs';
-import * as path from 'path';
+import * as admin from 'firebase-admin';
 
 @Injectable()
 export class DiplomasService {
   private readonly logger = new Logger(DiplomasService.name);
+  private db: admin.firestore.Firestore;
+  private storage: admin.storage.Storage;
 
-  constructor(
-    private prisma: PrismaService,
-    private emailService: EmailService,
-  ) {}
+  constructor(private emailService: EmailService) {
+    this.db = admin.firestore();
+    this.storage = admin.storage();
+  }
 
   async saveTemplate(eventId: string, file: Express.Multer.File) {
-    const uploadDir = path.join(process.cwd(), 'uploads', 'diplomas');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
+    const bucket = this.storage.bucket();
+    const filename = `diploma-templates/${eventId}-${Date.now()}.pdf`;
+    const fileRef = bucket.file(filename);
 
-    const filename = `${eventId}-${Date.now()}.pdf`;
-    const filePath = path.join(uploadDir, filename);
-    fs.writeFileSync(filePath, file.buffer);
-
-    return this.prisma.event.update({
-      where: { id: eventId },
-      data: { diplomaTemplateUrl: filePath },
+    await fileRef.save(file.buffer, {
+        contentType: 'application/pdf',
+        public: true // Optional: depending on needs
     });
+
+    // We store the storage path or public URL
+    // For internal use, storage path or name is enough.
+    // Let's store the full gs:// path or just the filename if we stick to one bucket.
+    // Simpler: Store the public URL or media link if possible, or just the filename/path.
+    // Let's store the cloud path.
+    
+    await this.db.collection('events').doc(eventId).update({
+        diplomaTemplatePath: filename,
+        updatedAt: new Date().toISOString()
+    });
+
+    return { message: 'Template uploaded successfully', path: filename };
   }
 
   async generateDiploma(templatePath: string, name: string): Promise<Buffer> {
-    const existingPdfBytes = fs.readFileSync(templatePath);
-    const pdfDoc = await PDFDocument.load(existingPdfBytes);
+    const bucket = this.storage.bucket();
+    const fileRef = bucket.file(templatePath);
+    const [fileBuffer] = await fileRef.download();
+
+    const pdfDoc = await PDFDocument.load(fileBuffer);
     const pages = pdfDoc.getPages();
     const firstPage = pages[0];
     const { width, height } = firstPage.getSize();
@@ -41,8 +52,6 @@ export class DiplomasService {
     const fontSize = 30;
     const textWidth = font.widthOfTextAtSize(name, fontSize);
 
-    // Center the name. Adjust Y as needed (currently centered vertically)
-    // You might want to make this configurable in the future
     firstPage.drawText(name, {
       x: (width - textWidth) / 2,
       y: height / 2,
@@ -56,69 +65,84 @@ export class DiplomasService {
   }
 
   async getPreviewStream(eventId: string) {
-    const event = await this.prisma.event.findUnique({
-      where: { id: eventId },
-    });
-    if (!event || !event.diplomaTemplateUrl) {
-      throw new NotFoundException('Event or diploma template not found');
+    const eventDoc = await this.db.collection('events').doc(eventId).get();
+    
+    if (!eventDoc.exists) {
+      throw new NotFoundException('Event not found');
+    }
+    const eventData = eventDoc.data();
+    
+    if (!eventData?.diplomaTemplatePath) {
+        throw new NotFoundException('Diploma template not found');
     }
 
     const pdfBuffer = await this.generateDiploma(
-      event.diplomaTemplateUrl,
+      eventData.diplomaTemplatePath,
       'John Doe',
     );
     return pdfBuffer;
   }
 
   async sendBatch(eventId: string) {
-    const event = await this.prisma.event.findUnique({
-      where: { id: eventId },
-    });
-    if (!event || !event.diplomaTemplateUrl) {
-      throw new NotFoundException('Event or diploma template not found');
+    const eventRef = this.db.collection('events').doc(eventId);
+    const eventDoc = await eventRef.get();
+    
+    if (!eventDoc.exists) {
+        throw new NotFoundException('Event not found');
+    }
+    const eventData = eventDoc.data();
+    
+    if (!eventData?.diplomaTemplatePath) {
+        throw new NotFoundException('Diploma template not found');
     }
 
-    const attendees = await this.prisma.attendee.findMany({
-      where: {
-        eventId,
-        checkedIn: true,
-        diplomaSent: false,
-      },
-    });
+    const attendeesSnapshot = await eventRef.collection('attendees')
+        .where('checkedIn', '==', true)
+        .where('diplomaSent', '==', false)
+        .get();
 
-    this.logger.log(`Found ${attendees.length} attendees to send diplomas to.`);
+    this.logger.log(`Found ${attendeesSnapshot.size} attendees to send diplomas to.`);
 
     let sentCount = 0;
-    for (const attendee of attendees) {
+    const batch = this.db.batch();
+    let batchCount = 0;
+
+    for (const doc of attendeesSnapshot.docs) {
+      const attendee = doc.data();
       try {
         const pdfBuffer = await this.generateDiploma(
-          event.diplomaTemplateUrl,
+          eventData.diplomaTemplatePath,
           attendee.name,
         );
         const sent = await this.emailService.sendDiploma(
           attendee.email,
           attendee.name,
-          event.name,
+          eventData.name,
           pdfBuffer,
         );
 
         if (sent) {
-          await this.prisma.attendee.update({
-            where: { id: attendee.id },
-            data: { diplomaSent: true },
-          });
-          sentCount++;
+            batch.update(doc.ref, { diplomaSent: true, diplomaSentAt: new Date().toISOString() });
+            batchCount++;
+            sentCount++;
         }
       } catch (error) {
-        this.logger.error(
-          `Failed to process diploma for ${attendee.email}`,
-          error,
-        );
+        this.logger.error(`Failed to send diploma to ${attendee.email}`, error);
       }
+      
+      if (batchCount >= 400) {
+          await batch.commit();
+          batchCount = 0;
+      }
+    }
+    
+    if (batchCount > 0) {
+        await batch.commit();
     }
 
     return {
-      message: `Diplomas sending process completed. Sent: ${sentCount}/${attendees.length}`,
+      message: `Sent ${sentCount} diplomas`,
+      total: attendeesSnapshot.size,
     };
   }
 }

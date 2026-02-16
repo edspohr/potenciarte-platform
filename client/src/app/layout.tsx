@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Potenciarte Event Platform",
-  description: "Manage your events with ease.",
+  title: 'Plataforma Potenciarte',
+  description: 'Gestión de eventos y diplomas digitales',
 };
 
 export default function RootLayout({

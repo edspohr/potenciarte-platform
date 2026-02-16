@@ -1,33 +1,48 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { User, Role } from '@prisma/client';
 import { DecodedIdToken } from 'firebase-admin/auth';
+import * as admin from 'firebase-admin';
+
+export enum Role {
+  ADMIN = 'ADMIN',
+  STAFF = 'STAFF',
+}
+
+export interface User {
+  id: string;
+  email: string;
+  fullName: string;
+  role: Role;
+}
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  private db: admin.firestore.Firestore;
 
-  async syncProfile(user: DecodedIdToken): Promise<User> {
-    const { uid, email, name } = user;
+  constructor() {
+    this.db = admin.firestore();
+  }
 
-    const existingUser = await this.prisma.user.findUnique({
-      where: { id: uid },
-    });
+  async syncProfile(userToken: DecodedIdToken): Promise<User> {
+    const { uid, email, name } = userToken;
+    const userRef = this.db.collection('users').doc(uid);
+    const doc = await userRef.get();
 
-    if (existingUser) {
-      return existingUser;
+    if (doc.exists) {
+      return doc.data() as User;
     }
 
-    const userCount = await this.prisma.user.count();
-    const role = userCount === 0 ? Role.ADMIN : Role.STAFF;
+    // Check if this is the first user to make them admin
+    const usersSnapshot = await this.db.collection('users').get();
+    const role = usersSnapshot.empty ? Role.ADMIN : Role.STAFF;
 
-    return this.prisma.user.create({
-      data: {
-        id: uid,
-        email: email || '',
-        fullName: (name as string) || 'Unknown',
-        role,
-      },
-    });
+    const newUser: User = {
+      id: uid,
+      email: email || '',
+      fullName: (name as string) || 'Unknown',
+      role,
+    };
+
+    await userRef.set(newUser);
+    return newUser;
   }
 }

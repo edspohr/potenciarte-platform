@@ -1,93 +1,123 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { EmailService } from '../common/email.service';
+import * as admin from 'firebase-admin';
 
 @Injectable()
 export class EventsService {
   private readonly logger = new Logger(EventsService.name);
+  private db: admin.firestore.Firestore;
 
-  constructor(
-    private prisma: PrismaService,
-    private emailService: EmailService,
-  ) {}
-
-  // ... existing methods ...
+  constructor(private emailService: EmailService) {
+    this.db = admin.firestore();
+  }
 
   async sendInvitations(eventId: string) {
-    const event = await this.prisma.event.findUnique({
-      where: { id: eventId },
-    });
-    if (!event) {
+    const eventRef = this.db.collection('events').doc(eventId);
+    const eventDoc = await eventRef.get();
+    
+    if (!eventDoc.exists) {
       throw new Error('Event not found');
     }
+    const eventData = eventDoc.data();
+    if (!eventData) {
+        throw new Error('Event data not found');
+    }
 
-    const attendees = await this.prisma.attendee.findMany({
-      where: { eventId, ticketSent: false },
-    });
+    const attendeesSnapshot = await eventRef.collection('attendees')
+      .where('ticketSent', '==', false)
+      .get();
 
     this.logger.log(
-      `Found ${attendees.length} pending invitations for event ${event.name}`,
+      `Found ${attendeesSnapshot.size} pending invitations for event ${eventData.name}`,
     );
 
     let sentCount = 0;
-    for (const attendee of attendees) {
+    const batch = this.db.batch();
+    let batchCount = 0;
+
+    for (const doc of attendeesSnapshot.docs) {
+      const attendee = doc.data();
       const success = await this.emailService.sendInvitation(
         attendee.email,
         attendee.name,
-        attendee.id,
-        event.name,
+        doc.id,
+        eventData.name,
       );
 
       if (success) {
-        await this.prisma.attendee.update({
-          where: { id: attendee.id },
-          data: { ticketSent: true },
-        });
+        batch.update(doc.ref, { ticketSent: true });
+        batchCount++;
         sentCount++;
       }
+      
+      // Commit batch every 500 ops
+      if (batchCount >= 400) {
+          await batch.commit();
+          batchCount = 0;
+      }
+    }
+    
+    if (batchCount > 0) {
+        await batch.commit();
     }
 
     return {
       message: `Sent ${sentCount} invitations`,
-      total: attendees.length,
+      total: attendeesSnapshot.size,
     };
   }
 
-  create(createEventDto: CreateEventDto) {
-    return this.prisma.event.create({
-      data: createEventDto,
-    });
+  async create(createEventDto: CreateEventDto) {
+    const eventData = {
+        ...createEventDto,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'DRAFT'
+    };
+    const res = await this.db.collection('events').add(eventData);
+    return { id: res.id, ...eventData };
   }
 
-  findAll() {
-    return this.prisma.event.findMany({
-      orderBy: { eventDate: 'asc' },
-    });
+  async findAll() {
+    const snapshot = await this.db.collection('events').orderBy('eventDate', 'asc').get();
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   }
 
-  findOne(id: string) {
-    return this.prisma.event.findUnique({
-      where: { id },
-      include: {
+  async findOne(id: string) {
+    const doc = await this.db.collection('events').doc(id).get();
+    if (!doc.exists) return null;
+    
+    const data = doc.data();
+    
+    // Count attendees in subcollection
+    // Note: count() aggregation is available in newer firebase-admin versions. 
+    // If not, we might need a workaround, but recent versions support it.
+    const attendeesCountSnapshot = await this.db.collection('events').doc(id).collection('attendees').count().get();
+    const attendeesCount = attendeesCountSnapshot.data().count;
+
+    return { 
+        id: doc.id, 
+        ...data,
         _count: {
-          select: { attendees: true },
-        },
-      },
-    });
+            attendees: attendeesCount
+        }
+    };
   }
 
-  update(id: string, updateEventDto: UpdateEventDto) {
-    return this.prisma.event.update({
-      where: { id },
-      data: updateEventDto,
+  async update(id: string, updateEventDto: UpdateEventDto) {
+    const docRef = this.db.collection('events').doc(id);
+    await docRef.update({
+        ...updateEventDto,
+        updatedAt: new Date().toISOString()
     });
+    const doc = await docRef.get();
+    return { id: doc.id, ...doc.data() };
   }
 
-  remove(id: string) {
-    return this.prisma.event.delete({
-      where: { id },
-    });
+  async remove(id: string) {
+    await this.db.collection('events').doc(id).delete();
+    return { id };
   }
 }

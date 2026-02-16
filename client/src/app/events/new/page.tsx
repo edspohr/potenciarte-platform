@@ -35,9 +35,10 @@ export default function NewEvent() {
       
       const response = await api.post('/events', payload);
       router.push(`/events/${response.data.id}`);
+      toast.success('Evento creado exitosamente');
     } catch (error) {
       console.error('Error creating event:', error);
-      toast.error('Failed to create event');
+      toast.error('Error al crear el evento');
     } finally {
       setLoading(false);
     }
@@ -46,81 +47,78 @@ export default function NewEvent() {
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-[#09090b] py-12 px-4 sm:px-6 lg:px-8 text-white">
-        <div className="max-w-md mx-auto bg-[#121214] p-8 border border-[#27272a] rounded-xl shadow-2xl">
-          <h2 className="text-2xl font-bold mb-6 text-orange-500">Create New Event</h2>
+        <div className="max-w-md mx-auto bg-[#18181b] p-8 border border-[#27272a] rounded-xl shadow-2xl">
+          <h2 className="text-2xl font-bold mb-6 text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-600">Crear Nuevo Evento</h2>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-zinc-300">Event Name</label>
+              <label className="block text-sm font-medium text-zinc-300">Nombre del Evento</label>
               <input
                 type="text"
                 name="name"
                 required
                 value={formData.name}
                 onChange={handleChange}
-                className="mt-1 block w-full rounded-md bg-[#09090b] border-[#27272a] text-white shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2 border transition-colors outline-none"
+                className="mt-1 block w-full rounded-md bg-[#09090b] border-[#27272a] text-white shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-3 border transition-colors outline-none"
+                placeholder="Ej: Conferencia Tech 2025"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-zinc-300">Date & Time</label>
+              <label className="block text-sm font-medium text-zinc-300">Fecha y Hora</label>
               <input
                 type="datetime-local"
                 name="eventDate"
                 required
                 value={formData.eventDate}
                 onChange={handleChange}
-                className="mt-1 block w-full rounded-md bg-[#09090b] border-[#27272a] text-white shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2 border transition-colors outline-none"
+                className="mt-1 block w-full rounded-md bg-[#09090b] border-[#27272a] text-white shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-3 border transition-colors outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-zinc-300">Location</label>
+              <label className="block text-sm font-medium text-zinc-300">Ubicación</label>
               <input
                 type="text"
                 name="location"
                 required
                 value={formData.location}
                 onChange={handleChange}
-                className="mt-1 block w-full rounded-md bg-[#09090b] border-[#27272a] text-white shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2 border transition-colors outline-none"
+                className="mt-1 block w-full rounded-md bg-[#09090b] border-[#27272a] text-white shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-3 border transition-colors outline-none"
+                placeholder="Ej: Salón de Eventos Santiago"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-zinc-300">Description</label>
+              <label className="block text-sm font-medium text-zinc-300">Descripción</label>
               <textarea
                 name="description"
                 rows={3}
                 value={formData.description}
                 onChange={handleChange}
-                className="mt-1 block w-full rounded-md bg-[#09090b] border-[#27272a] text-white shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2 border transition-colors outline-none"
+                className="mt-1 block w-full rounded-md bg-[#09090b] border-[#27272a] text-white shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-3 border transition-colors outline-none"
+                placeholder="Breve descripción del evento..."
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-zinc-300">Header Image URL</label>
+              <label className="block text-sm font-medium text-zinc-300">URL Imagen de Cabecera</label>
               <input
-                type="url"
+                type="text"
                 name="headerImage"
                 value={formData.headerImage}
                 onChange={handleChange}
-                className="mt-1 block w-full rounded-md bg-[#09090b] border-[#27272a] text-white shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2 border transition-colors outline-none"
+                className="mt-1 block w-full rounded-md bg-[#09090b] border-[#27272a] text-white shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-3 border transition-colors outline-none"
+                placeholder="https://..."
               />
             </div>
 
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={() => router.back()}
-                className="mr-3 px-4 py-2 text-sm font-medium text-zinc-400 bg-transparent border border-[#27272a] rounded-md hover:bg-zinc-800 transition-colors"
-              >
-                Cancel
-              </button>
+            <div>
               <button
                 type="submit"
                 disabled={loading}
-                className="inline-flex justify-center px-4 py-2 text-sm font-bold text-white bg-orange-600 border border-transparent rounded-md shadow-lg shadow-orange-950/30 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 transition-all active:scale-95"
+                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 transition-all duration-300 transform hover:scale-[1.02]"
               >
-                {loading ? 'Creating...' : 'Create Event'}
+                {loading ? 'Creando...' : 'Crear Evento'}
               </button>
             </div>
           </form>

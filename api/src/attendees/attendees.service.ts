@@ -1,8 +1,7 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import csv from 'csv-parser';
 import { Readable } from 'stream';
-import { Prisma } from '@prisma/client';
+import * as admin from 'firebase-admin';
 
 interface CsvRow {
   email?: string;
@@ -13,20 +12,24 @@ interface CsvRow {
 
 @Injectable()
 export class AttendeesService {
-  constructor(private prisma: PrismaService) {}
+  private db: admin.firestore.Firestore;
+  private readonly logger = new Logger(AttendeesService.name);
+
+  constructor() {
+    this.db = admin.firestore();
+  }
 
   async processCsv(
     eventId: string,
     fileBuffer: Buffer,
   ): Promise<{ count: number; message: string }> {
-    const attendees: Prisma.AttendeeCreateManyInput[] = [];
+    const attendees: any[] = [];
     const stream = Readable.from(fileBuffer.toString());
 
     return new Promise((resolve, reject) => {
       stream
         .pipe(csv())
         .on('data', (data: unknown) => {
-          // Normalize keys to lowercase
           const row = data as Record<string, unknown>;
           const normalizedData: CsvRow = {};
           Object.keys(row).forEach((key) => {
@@ -42,13 +45,18 @@ export class AttendeesService {
               name: normalizedData['name'],
               rut: normalizedData['rut'] || null,
               eventId,
+              checkedIn: false,
+              ticketSent: false,
+              diplomaSent: false,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
             });
           }
         })
         .on('end', () => {
           void (async () => {
             try {
-              await this.createMany(attendees);
+              await this.createMany(eventId, attendees);
               resolve({
                 count: attendees.length,
                 message: 'Processed successfully',
@@ -64,70 +72,84 @@ export class AttendeesService {
     });
   }
 
-  async createMany(data: Prisma.AttendeeCreateManyInput[]) {
+  async createMany(eventId: string, data: any[]) {
     if (data.length === 0) return;
 
-    return await this.prisma.attendee.createMany({
-      data,
-      skipDuplicates: true,
-    });
+    const collectionRef = this.db.collection('events').doc(eventId).collection('attendees');
+    const batchArray = [];
+    let batchIndex = 0;
+    batchArray[batchIndex] = this.db.batch();
+    let counter = 0;
+
+    for (const attendee of data) {
+      const docRef = collectionRef.doc(); // Auto-ID
+      batchArray[batchIndex].set(docRef, attendee);
+      counter++;
+
+      if (counter === 499) {
+        batchIndex++;
+        batchArray[batchIndex] = this.db.batch();
+        counter = 0;
+      }
+    }
+
+    for (const batch of batchArray) {
+      await batch.commit();
+    }
   }
 
   async findAll(eventId: string) {
-    return await this.prisma.attendee.findMany({
-      where: { eventId },
-      orderBy: { name: 'asc' },
-    });
+    const snapshot = await this.db.collection('events').doc(eventId).collection('attendees')
+      .orderBy('name', 'asc')
+      .get();
+    
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   }
 
   async checkIn(eventId: string, attendeeId: string) {
-    const attendee = await this.prisma.attendee.findUnique({
-      where: { id: attendeeId },
-    });
+    const attendeeRef = this.db.collection('events').doc(eventId).collection('attendees').doc(attendeeId);
+    const attendeeDoc = await attendeeRef.get();
 
-    if (!attendee) {
+    if (!attendeeDoc.exists) {
       throw new BadRequestException('Attendee not found');
     }
 
-    if (attendee.eventId !== eventId) {
-      throw new BadRequestException('Attendee does not belong to this event');
+    const attendee = attendeeDoc.data();
+    
+    // In Firestore subcollection, eventId is implicit in path, but we store it in doc too.
+    // Verification is good practice.
+    if (attendee?.eventId !== eventId) {
+        throw new BadRequestException('Attendee does not belong to this event');
     }
 
-    // Idempotency: If already checked in, return the attendee with a specific message/status
-    // This allows offline syncs to replay without erroring out
-    if (attendee.checkedIn) {
-      return { ...attendee, status: 'already_checked_in' };
+    if (attendee?.checkedIn) {
+      return { id: attendeeDoc.id, ...attendee, status: 'already_checked_in' };
     }
 
-    return await this.prisma.attendee.update({
-      where: { id: attendeeId },
-      data: {
-        checkedIn: true,
-        checkInTime: new Date(),
-      },
+    await attendeeRef.update({
+      checkedIn: true,
+      checkInTime: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     });
+    
+    const updatedDoc = await attendeeRef.get();
+    return { id: updatedDoc.id, ...updatedDoc.data() };
   }
 
   async getSyncData(eventId: string) {
-    return await this.prisma.attendee.findMany({
-      where: { eventId },
-      select: {
-        id: true,
-        eventId: true,
-        name: true,
-        email: true,
-        rut: true,
-        checkedIn: true,
-        ticketSent: true,
-      },
-    });
+      return this.findAll(eventId);
   }
 
   async getStats(eventId: string) {
-    const total = await this.prisma.attendee.count({ where: { eventId } });
-    const checkedIn = await this.prisma.attendee.count({
-      where: { eventId, checkedIn: true },
-    });
+    const attendeesRef = this.db.collection('events').doc(eventId).collection('attendees');
+    
+    // Using count() aggregation if supported by current SDK, otherwise fallback to get().size
+    // Assuming standard heavy read is okay for now or count() works.
+    const totalSnapshot = await attendeesRef.count().get();
+    const checkedInSnapshot = await attendeesRef.where('checkedIn', '==', true).count().get();
+
+    const total = totalSnapshot.data().count;
+    const checkedIn = checkedInSnapshot.data().count;
 
     return {
       total,

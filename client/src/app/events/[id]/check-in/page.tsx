@@ -1,7 +1,5 @@
 'use client';
 
-
-
 import { useState, useEffect, useRef, use, useCallback } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import api from '../../../../lib/api';
@@ -30,7 +28,6 @@ export default function CheckInPage({ params }: { params: Promise<{ id: string }
   
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
-  // Logic: Push local pending changes -> API
   const processPendingSyncs = useCallback(async () => {
     const pending = await db.attendees
         .where('eventId').equals(eventId)
@@ -42,12 +39,11 @@ export default function CheckInPage({ params }: { params: Promise<{ id: string }
             await api.post(`/events/${eventId}/attendees/check-in`, { attendeeId: attendee.id });
             await db.attendees.update(attendee.id, { syncStatus: 'synced' });
         } catch (error) {
-            console.error(`Failed to sync check-in for ${attendee.name}`, error);
+            console.error(`Error al sincronizar check-in para ${attendee.name}`, error);
         }
     }
   }, [eventId]);
 
-  // Logic: Sync Data form API -> Local DB
   const syncEventData = useCallback(async () => {
     if (!navigator.onLine) return;
     setSyncing(true);
@@ -55,49 +51,42 @@ export default function CheckInPage({ params }: { params: Promise<{ id: string }
         const response = await api.get(`/events/${eventId}/attendees/sync`);
         const serverAttendees = response.data;
         
-        // Bulk put updates existing records by ID, adding new ones
         const attendeesToSave: LocalAttendee[] = (serverAttendees as Omit<LocalAttendee, 'syncStatus'>[]).map(a => ({
             ...a,
             syncStatus: 'synced'
         }));
         
         await db.attendees.bulkPut(attendeesToSave);
-        console.log(`Synced ${attendeesToSave.length} attendees`);
+        console.log(`Sincronizados ${attendeesToSave.length} asistentes`);
         
-        // Also push any pending local changes up
         await processPendingSyncs();
         
     } catch (error) {
-        console.error("Sync failed:", error);
+        console.error("Fallo la sincronización:", error);
     } finally {
         setSyncing(false);
     }
   }, [eventId, processPendingSyncs]);
 
-  // Logic: Local Check-in (The Core)
   const handleCheckIn = useCallback(async (attendeeId: string) => {
     setFeedback(null);
     try {
-        // 1. Lookup Local
         const attendee = await db.attendees.get(attendeeId);
         
-        // 2. Not Found?
         if (!attendee || attendee.eventId !== eventId) {
-            setFeedback({ type: 'error', message: 'INVALID Ticket - Not found in this event' });
+            setFeedback({ type: 'error', message: 'TICKET INVÁLIDO' });
             return;
         }
         
-        // 3. Already Checked In?
         if (attendee.checkedIn) {
             setFeedback({ 
                 type: 'warning', 
-                message: 'ALREADY INSIDE', 
+                message: 'YA INGRESÓ', 
                 attendee 
             });
             return;
         }
         
-        // 4. Valid -> Mark Checked In Locally
         await db.attendees.update(attendeeId, { 
             checkedIn: true, 
             checkInTime: new Date(),
@@ -108,21 +97,20 @@ export default function CheckInPage({ params }: { params: Promise<{ id: string }
         if (updatedAttendee) {
              setFeedback({ 
                 type: 'success', 
-                message: 'ACCESS GRANTED', 
+                message: 'ACCESO PERMITIDO', 
                 attendee: updatedAttendee 
             });
         }
 
-        // 5. Try Sync Background
         if (navigator.onLine) {
             api.post(`/events/${eventId}/attendees/check-in`, { attendeeId })
                .then(() => db.attendees.update(attendeeId, { syncStatus: 'synced' }))
-               .catch(err => console.warn("Background sync failed, queued.", err));
+               .catch(err => console.warn("Sincronización en segundo plano falló, en cola.", err));
         }
 
     } catch (error) {
         console.error(error);
-        setFeedback({ type: 'error', message: 'System Error' });
+        setFeedback({ type: 'error', message: 'Error del Sistema' });
     }
   }, [eventId]);
 
@@ -130,12 +118,10 @@ export default function CheckInPage({ params }: { params: Promise<{ id: string }
     if (decodedText !== lastScannedResult) {
       setLastScannedResult(decodedText);
       handleCheckIn(decodedText);
-      // Reset scan lock after 3s
       setTimeout(() => setLastScannedResult(null), 3000);
     }
   }, [lastScannedResult, handleCheckIn]);
 
-  // 1. Connectivity & Initial Sync
   useEffect(() => {
     setIsOnline(navigator.onLine);
     
@@ -148,7 +134,6 @@ export default function CheckInPage({ params }: { params: Promise<{ id: string }
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Initial Sync on load
     syncEventData();
 
     return () => {
@@ -157,10 +142,8 @@ export default function CheckInPage({ params }: { params: Promise<{ id: string }
     };
   }, [processPendingSyncs, syncEventData]);
 
-  // 2. Scanner Setup
   useEffect(() => {
     if (activeTab === 'scan' && !scannerRef.current) {
-        // Delay to ensure DOM is ready
         const timeoutId = setTimeout(() => {
             const scanner = new Html5QrcodeScanner(
                 "reader",
@@ -182,7 +165,6 @@ export default function CheckInPage({ params }: { params: Promise<{ id: string }
     };
   }, [activeTab, onScanSuccess]);
 
-  // Search Logic
   const handleSearch = async (query: string) => {
       setSearchQuery(query);
       if (!query) {
@@ -191,7 +173,6 @@ export default function CheckInPage({ params }: { params: Promise<{ id: string }
       }
       
       const q = query.toLowerCase();
-      // Dexie filtering
       const results = await db.attendees
         .where('eventId').equals(eventId)
         .filter(a => 
@@ -212,7 +193,7 @@ export default function CheckInPage({ params }: { params: Promise<{ id: string }
         <div className="bg-[#121214] text-white p-4 border-b border-[#27272a] shadow-2xl sticky top-0 z-50 backdrop-blur-md bg-opacity-90">
             <div className="flex justify-between items-center mb-4">
                 <Link href={`/events/${eventId}`} className="text-zinc-400 hover:text-orange-500 transition-colors flex items-center font-medium">
-                    <ArrowLeft className="h-5 w-5 mr-1" /> Exit
+                    <ArrowLeft className="h-5 w-5 mr-1" /> Salir
                 </Link>
                 <div className="flex items-center space-x-3">
                     {syncing && <RefreshCw className="h-4 w-4 animate-spin text-orange-500" />}
@@ -232,13 +213,13 @@ export default function CheckInPage({ params }: { params: Promise<{ id: string }
                     onClick={() => setActiveTab('scan')}
                     className={`flex-1 py-2 rounded-md font-bold text-sm flex items-center justify-center transition-all ${activeTab === 'scan' ? 'bg-orange-600 text-white shadow-lg' : 'text-zinc-500 hover:text-white'}`}
                 >
-                    <Camera className="h-4 w-4 mr-2" /> Scan QR
+                    <Camera className="h-4 w-4 mr-2" /> Escanear QR
                 </button>
                 <button 
                     onClick={() => setActiveTab('search')}
                     className={`flex-1 py-2 rounded-md font-bold text-sm flex items-center justify-center transition-all ${activeTab === 'search' ? 'bg-orange-600 text-white shadow-lg' : 'text-zinc-500 hover:text-white'}`}
                 >
-                    <Search className="h-4 w-4 mr-2" /> Search
+                    <Search className="h-4 w-4 mr-2" /> Buscar
                 </button>
             </div>
         </div>
@@ -272,7 +253,7 @@ export default function CheckInPage({ params }: { params: Promise<{ id: string }
             {activeTab === 'scan' && (
                 <div className="bg-[#121214] rounded-2xl shadow-xl overflow-hidden p-4 border border-[#27272a]">
                      <div id="reader" className="w-full rounded-xl overflow-hidden bg-black border border-zinc-800"></div>
-                     <p className="text-center text-zinc-500 text-sm mt-6 font-medium">Ready to scan attendees</p>
+                     <p className="text-center text-zinc-500 text-sm mt-6 font-medium">Listo para escanear</p>
                 </div>
             )}
 
@@ -281,7 +262,7 @@ export default function CheckInPage({ params }: { params: Promise<{ id: string }
                     <div className="relative">
                         <input 
                             type="search" 
-                            placeholder="Search Name, Email or RUT..." 
+                            placeholder="Buscar Nombre, Email o RUT..." 
                             className="w-full p-4 pl-12 rounded-xl bg-[#121214] border border-[#27272a] text-white shadow-lg text-lg focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all outline-none"
                             value={searchQuery}
                             onChange={(e) => handleSearch(e.target.value)}
@@ -303,7 +284,7 @@ export default function CheckInPage({ params }: { params: Promise<{ id: string }
                                 </div>
                                 <div className="flex items-center">
                                     {attendee.checkedIn ? (
-                                        <div className="bg-green-500/10 text-green-500 text-xs px-2 py-1 rounded-md font-black border border-green-500/20">VALIDATED</div>
+                                        <div className="bg-green-500/10 text-green-500 text-xs px-2 py-1 rounded-md font-black border border-green-500/20">VALIDADO</div>
                                     ) : (
                                         <div className="h-10 w-10 bg-orange-500/10 rounded-full flex items-center justify-center text-orange-500 border border-orange-500/20 transform hover:scale-110 transition-transform">
                                             <Check className="h-6 w-6" />
@@ -313,7 +294,7 @@ export default function CheckInPage({ params }: { params: Promise<{ id: string }
                             </div>
                         ))}
                         {searchQuery && searchResults.length === 0 && (
-                            <div className="text-center text-zinc-500 py-12 italic">No matching attendees found</div>
+                            <div className="text-center text-zinc-500 py-12 italic">No se encontraron asistentes</div>
                         )}
                      </div>
                 </div>

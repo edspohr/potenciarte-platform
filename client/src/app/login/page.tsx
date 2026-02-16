@@ -2,57 +2,63 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 export default function LoginPage() {
-  const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const { signIn } = useAuth();
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await signIn(email, password);
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('An unexpected error occurred');
-      }
+      router.push('/dashboard');
+    } catch (error) {
+       toast.error('Credenciales inválidas');
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#09090b] text-white">
-      <div className="bg-[#121214] p-8 rounded-lg shadow-2xl border border-[#27272a] w-full max-w-md">
-        <h2 className="text-3xl font-bold mb-6 text-center text-orange-500">Potenciarte Platform</h2>
-        {error && <p className="text-red-500 mb-4">{error}</p>}
+    <div className="flex items-center justify-center min-h-screen bg-[#09090b]">
+       <div className="w-full max-w-md p-8 bg-[#18181b] rounded-2xl border border-[#27272a] shadow-xl">
+        <h1 className="text-3xl font-bold mb-2 text-center text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-400">
+           Iniciar Sesión
+        </h1>
+        <p className="text-zinc-400 text-center mb-8">
+           Ingresa tus credenciales para acceder al panel
+        </p>
+        
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
+            <label className="block text-sm font-medium text-zinc-300 mb-1">Email</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-teal-400"
+              className="w-full px-4 py-3 rounded-lg bg-[#27272a] border border-[#3f3f46] text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
               required
+              placeholder="tu@email.com"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Password</label>
+            <label className="block text-sm font-medium text-zinc-300 mb-1">Contraseña</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-teal-400"
+              className="w-full px-4 py-3 rounded-lg bg-[#27272a] border border-[#3f3f46] text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
               required
+              placeholder="••••••••"
             />
           </div>
           <button
             type="submit"
-            className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded transition duration-200 shadow-lg shadow-orange-900/20"
+            className="w-full bg-gradient-to-r from-orange-500 to-red-600 text-white font-bold py-3 rounded-lg hover:shadow-[0_0_20px_-5px_rgba(249,115,22,0.5)] transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98]"
           >
-            Sign In
+            Ingresar
           </button>
         </form>
       </div>

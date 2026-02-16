@@ -5,7 +5,6 @@ import {
   Param,
   UseInterceptors,
   UploadedFile,
-  Body,
   BadRequestException,
   HttpException,
   HttpStatus,
@@ -13,31 +12,15 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { DiplomasService } from './diplomas.service';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
-import { PrismaService } from '../prisma/prisma.service';
-import type { Response } from 'express'; // Keep this if previewDiploma is still needed, otherwise remove. The instruction implies replacing the whole controller.
+import type { Response } from 'express';
 
 @Controller('events')
 export class DiplomasController {
-  constructor(
-    private readonly diplomasService: DiplomasService,
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly diplomasService: DiplomasService) {}
 
   @Post(':id/diplomas/upload')
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: './uploads', // Ensure this directory exists
-        filename: (req, file, cb) => {
-          const randomName = Array(32)
-            .fill(null)
-            .map(() => Math.round(Math.random() * 16).toString(16))
-            .join('');
-          return cb(null, `${randomName}${extname(file.originalname)}`);
-        },
-      }),
       fileFilter: (req, file, cb) => {
         if (file.mimetype !== 'application/pdf') {
           return cb(

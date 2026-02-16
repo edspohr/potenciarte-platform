@@ -1,11 +1,10 @@
 import { Module } from '@nestjs/common';
 import { EventsService } from './events.service';
 import { EventsController } from './events.controller';
-import { PrismaModule } from '../prisma/prisma.module';
 import { EmailModule } from '../common/email.module';
 
 @Module({
-  imports: [PrismaModule, EmailModule],
+  imports: [EmailModule],
   controllers: [EventsController],
   providers: [EventsService],
 })

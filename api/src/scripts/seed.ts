@@ -1,108 +1,133 @@
-import { ServiceAccount } from 'firebase-admin';
 import * as admin from 'firebase-admin';
-import { PrismaClient, Role } from '@prisma/client';
+import * as dotenv from 'dotenv';
 import * as path from 'path';
 import * as fs from 'fs';
 
-const prisma = new PrismaClient();
+dotenv.config();
 
-async function main() {
-  console.log('Seeding users...');
+// Determine environment specific config if needed
+// For local execution of this script, we need to initialize the app.
+// If this script is run via `ts-node src/scripts/seed.ts` it needs credentials.
 
-  // 1. Initialize Firebase Admin
-  const serviceAccountPath = path.resolve(
-    __dirname,
-    '../../firebase-service-account.json',
-  );
+const serviceAccountPath = path.resolve(
+  __dirname,
+  '../../firebase-service-account.json',
+);
 
-  if (!fs.existsSync(serviceAccountPath)) {
-    console.error('Firebase service account not found at:', serviceAccountPath);
-    process.exit(1);
-  }
-
-  const serviceAccount = JSON.parse(
-    fs.readFileSync(serviceAccountPath, 'utf8'),
-  ) as ServiceAccount;
-
-  if (!admin.apps.length) {
+if (!admin.apps.length) {
+  if (fs.existsSync(serviceAccountPath)) {
+    const serviceAccount = JSON.parse(
+      fs.readFileSync(serviceAccountPath, 'utf8'),
+    ) as admin.ServiceAccount;
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
+      projectId: process.env.FIREBASE_PROJECT_ID || 'potenciarte-platform-v1',
     });
-  }
-
-  const users = [
-    {
-      email: 'admin@potenciarte.cl',
-      password: '123456',
-      fullName: 'Admin User',
-      role: Role.ADMIN,
-    },
-    {
-      email: 'staff@potenciarte.cl',
-      password: '123456',
-      fullName: 'Staff User',
-      role: Role.STAFF,
-    },
-  ];
-
-  for (const user of users) {
-    let uid = '';
-
-    try {
-      // Check if user exists in Firebase
-      try {
-        const firebaseUser = await admin.auth().getUserByEmail(user.email);
-        uid = firebaseUser.uid;
-        console.log(
-          `User ${user.email} found in Firebase (UID: ${uid}). Updating password...`,
-        );
-        await admin.auth().updateUser(uid, {
-          password: user.password,
-        });
-      } catch (error: unknown) {
-        // Cast error to any to check code property safely-ish, or use a better type guard
-        const firebaseError = error as { code?: string };
-        if (firebaseError.code === 'auth/user-not-found') {
-          console.log(`User ${user.email} not found in Firebase. Creating...`);
-          const newUser = await admin.auth().createUser({
-            email: user.email,
-            password: user.password,
-            displayName: user.fullName,
-          });
-          uid = newUser.uid;
-        } else {
-          throw error;
-        }
-      }
-
-      // Upsert in Prisma
-      console.log(`Upserting user ${user.email} in Database...`);
-      await prisma.user.upsert({
-        where: { email: user.email },
-        update: {
-          fullName: user.fullName,
-          role: user.role,
-        },
-        create: {
-          id: uid,
-          email: user.email,
-          fullName: user.fullName,
-          role: user.role,
-        },
-      });
-
-      console.log(`✅ Processed ${user.email}`);
-    } catch (error) {
-      console.error(`Error processing ${user.email}:`, error);
-    }
+  } else {
+    admin.initializeApp({
+      credential: admin.credential.applicationDefault(),
+      projectId: process.env.FIREBASE_PROJECT_ID || 'potenciarte-platform-v1',
+    });
   }
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+const db = admin.firestore();
+
+// Role definition locally since we can't easily import from NestJS service in a standalone script without context
+enum Role {
+  USER = 'USER',
+  ADMIN = 'ADMIN',
+  STAFF = 'STAFF',
+}
+
+async function main() {
+  const users = [
+    {
+      email: 'admin@potenciarte.cl',
+      name: 'Admin User',
+      role: Role.ADMIN,
+      uid: 'admin-uid-placeholder',
+    },
+    {
+      email: 'staff@potenciarte.cl',
+      name: 'Staff User',
+      role: Role.STAFF,
+      uid: 'staff-uid-placeholder',
+    },
+  ];
+
+  console.log('Seeding users...');
+
+  // Note: specific User seeding for Firestore is often not needed as users are created via Auth
+  // But we can create the user documents.
+
+  for (const user of users) {
+    // We use email as ID for simplicity in this seed if UID is not known,
+    // but in real app we use UID.
+    // Skipping actual user doc creation to avoid confusion with Auth UIDs.
+    console.log(`Skipping user doc creation for ${user.email} (Auth managed)`);
+  }
+
+  console.log('Seeding Events...');
+
+  const events = [
+    {
+      name: 'Evento de Prueba',
+      eventDate: new Date('2024-12-25').toISOString(),
+      location: 'Centro de Eventos',
+      description: 'Un evento de prueba para verificar el sistema.',
+      status: 'PUBLISHED',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+  ];
+
+  for (const event of events) {
+    const res = await db.collection('events').add(event);
+    console.log(`Created event: ${event.name} with ID: ${res.id}`);
+
+    // Add some attendees
+    const attendees = [
+      {
+        name: 'Juan Pérez',
+        email: 'juan@example.com',
+        rut: '1-9',
+        checkedIn: false,
+        ticketSent: false,
+        diplomaSent: false,
+      },
+      {
+        name: 'María López',
+        email: 'maria@example.com',
+        rut: '2-7',
+        checkedIn: false,
+        ticketSent: false,
+        diplomaSent: false,
+      },
+    ];
+
+    const batch = db.batch();
+    const attendeesRef = db
+      .collection('events')
+      .doc(res.id)
+      .collection('attendees');
+
+    for (const att of attendees) {
+      const ref = attendeesRef.doc();
+      batch.set(ref, {
+        ...att,
+        eventId: res.id,
+        createdAt: new Date().toISOString(),
+      });
+    }
+    await batch.commit();
+    console.log(`Added ${attendees.length} attendees to event ${res.id}`);
+  }
+
+  console.log('Seeding finished.');
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
