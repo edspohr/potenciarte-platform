@@ -9,6 +9,7 @@ import {
   BadRequestException,
   HttpException,
   HttpStatus,
+  Res,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { DiplomasService } from './diplomas.service';
