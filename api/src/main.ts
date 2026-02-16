@@ -59,7 +59,15 @@ export const createNestServer = async (expressInstance: express.Express) => {
     AppModule,
     new ExpressAdapter(expressInstance),
   );
-  app.enableCors(); // Important: Configure exact origin for production
+  app.enableCors({
+    origin: [
+      'https://potenciarte-platform-v1.web.app',
+      'https://potenciarte-platform-v1.firebaseapp.com', // Firebase creates this alias too
+      'http://localhost:3000',
+    ],
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+  });
   await app.init();
   return app;
 };
