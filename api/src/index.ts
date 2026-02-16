@@ -3,8 +3,12 @@ import express from 'express';
 import { createNestServer } from './main';
 
 const server = express();
+let appInitialized = false;
 
 export const api = onRequest(async (request, response) => {
-  await createNestServer(server);
+  if (!appInitialized) {
+    await createNestServer(server);
+    appInitialized = true;
+  }
   server(request, response);
 });
