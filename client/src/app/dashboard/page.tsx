@@ -8,6 +8,7 @@ import api from '../../lib/api';
 import { useAuth } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Event } from '@/types';
+import Spinner from '@/components/Spinner';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -49,7 +50,7 @@ export default function Dashboard() {
 
         <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
           {loading ? (
-            <div className="text-center py-10">Loading events...</div>
+            <Spinner />
           ) : events.length === 0 ? (
             <div className="text-center py-10 text-gray-500">
               No events found. Create your first event!

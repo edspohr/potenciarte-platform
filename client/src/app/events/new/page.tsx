@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../lib/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import { toast } from 'sonner';
 
 export default function NewEvent() {
   const router = useRouter();
@@ -36,7 +37,7 @@ export default function NewEvent() {
       router.push(`/events/${response.data.id}`);
     } catch (error) {
       console.error('Error creating event:', error);
-      alert('Failed to create event');
+      toast.error('Failed to create event');
     } finally {
       setLoading(false);
     }

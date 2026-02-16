@@ -10,7 +10,13 @@ import { EmailModule } from './common/email.module';
 import { DiplomasModule } from './diplomas/diplomas.module';
 
 @Module({
-  imports: [PrismaModule, EventsModule, AttendeesModule, EmailModule, DiplomasModule],
+  imports: [
+    PrismaModule,
+    EventsModule,
+    AttendeesModule,
+    EmailModule,
+    DiplomasModule,
+  ],
   controllers: [AppController, AuthController],
   providers: [AppService, UsersService],
 })

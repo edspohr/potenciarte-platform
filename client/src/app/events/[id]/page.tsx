@@ -8,6 +8,8 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import { Event, Attendee } from '@/types';
 import { Upload, Mail, Check, ArrowLeft, Camera, FileText, Send, Eye } from 'lucide-react';
 import Link from 'next/link';
+import { toast } from 'sonner';
+import Spinner from '@/components/Spinner';
 
 export default function EventDetails({ params }: { params: Promise<{ id: string }> }) {
   // Access params using React.use() to unwrap the Promise
@@ -48,6 +50,8 @@ export default function EventDetails({ params }: { params: Promise<{ id: string 
     fetchAttendees();
   }, [fetchEventDetails, fetchAttendees]);
 
+
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     
@@ -60,12 +64,12 @@ export default function EventDetails({ params }: { params: Promise<{ id: string 
       await api.post(`/events/${id}/attendees/upload`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      alert('Attendees uploaded successfully!');
+      toast.success('Attendees uploaded successfully!');
       fetchAttendees();
       fetchEventDetails(); // Refresh counts
     } catch (error) {
       console.error('Error uploading file:', error);
-      alert('Failed to upload CSV');
+      toast.error('Failed to upload CSV');
     } finally {
       setUploading(false);
       // Reset input
@@ -85,11 +89,11 @@ export default function EventDetails({ params }: { params: Promise<{ id: string 
       await api.post(`/events/${id}/diplomas/upload`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      alert('Diploma template uploaded successfully!');
+      toast.success('Diploma template uploaded successfully!');
       fetchEventDetails();
     } catch (error) {
       console.error('Error uploading template:', error);
-      alert('Failed to upload template');
+      toast.error('Failed to upload template');
     } finally {
       setUploadingTemplate(false);
       e.target.value = '';
@@ -102,11 +106,11 @@ export default function EventDetails({ params }: { params: Promise<{ id: string 
     setSending(true);
     try {
       const response = await api.post(`/events/${id}/invitations`);
-      alert(response.data.message);
+      toast.success(response.data.message);
       fetchAttendees(); // Refresh ticketSent status
     } catch (error) {
       console.error('Error sending invitations:', error);
-      alert('Failed to send invitations');
+      toast.error('Failed to send invitations');
     } finally {
       setSending(false);
     }
@@ -118,17 +122,20 @@ export default function EventDetails({ params }: { params: Promise<{ id: string 
     setSendingDiplomas(true);
     try {
       const response = await api.post(`/events/${id}/diplomas/send-batch`);
-      alert(response.data?.message || 'Diplomas sent successfully');
+      toast.success(response.data?.message || 'Diplomas sent successfully');
       fetchAttendees();
     } catch (error) {
       console.error('Error sending diplomas:', error);
-      alert('Failed to send diplomas');
+      toast.error('Failed to send diplomas');
     } finally {
       setSendingDiplomas(false);
     }
   };
 
-  if (loading) return <div className="p-8 text-center">Loading...</div>;
+
+
+
+  if (loading) return <Spinner />;
   if (!event) return <div className="p-8 text-center">Event not found</div>;
 
   return (

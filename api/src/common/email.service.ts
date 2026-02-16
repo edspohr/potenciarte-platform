@@ -63,6 +63,38 @@ export class EmailService {
       return false;
     }
   }
+
+  async sendEmailWithAttachment(
+    to: string,
+    subject: string,
+    text: string,
+    filename: string,
+    content: string, // Base64 string
+    type: string,
+  ) {
+    const msg = {
+      to,
+      from: process.env.SENDGRID_FROM_EMAIL || 'noreply@potenciarte.com',
+      subject,
+      text,
+      attachments: [
+        {
+          content,
+          filename,
+          type,
+          disposition: 'attachment',
+        },
+      ],
+    };
+
+    try {
+      await sgMail.send(msg);
+      this.logger.log(`Email with attachment sent to ${to}`);
+    } catch (error) {
+      this.logger.error(`Error sending email to ${to}:`, error);
+    }
+  }
+
   async sendDiploma(
     email: string,
     name: string,
@@ -92,6 +124,7 @@ export class EmailService {
             filename: `Diploma-${eventName}.pdf`,
             type: 'application/pdf',
             disposition: 'attachment',
+            content_id: 'diploma', // optional
           },
         ],
       };
