@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import api from '@/lib/api';
 import Link from 'next/link';
-import { Plus, Calendar, MapPin, LogOut, ArrowRight } from 'lucide-react';
+import Image from 'next/image';
+import { Plus, Calendar, MapPin, LogOut, ArrowRight, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import Spinner from '@/components/Spinner';
 
@@ -12,7 +13,9 @@ interface Event {
   id: string;
   name: string;
   date: string;
+  eventDate: string;
   location: string;
+  status: string;
 }
 
 export default function Dashboard() {
@@ -35,106 +38,131 @@ export default function Dashboard() {
     fetchEvents();
   }, []);
 
+  const getStatusBadge = (status: string) => {
+    const styles: Record<string, string> = {
+      DRAFT: 'bg-zinc-800 text-zinc-400 border-zinc-700',
+      PUBLISHED: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+      COMPLETED: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+    };
+    const labels: Record<string, string> = {
+      DRAFT: 'Borrador',
+      PUBLISHED: 'Publicado',
+      COMPLETED: 'Completado',
+    };
+    return (
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${styles[status] || styles.DRAFT}`}>
+        {labels[status] || status}
+      </span>
+    );
+  };
+
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-[#09090b] text-white">
+      <div className="min-h-screen bg-[var(--background)] text-white">
         {/* Navbar */}
-        <nav className="border-b border-[#27272a] bg-[#09090b]/50 backdrop-blur-md sticky top-0 z-50">
+        <nav className="border-b border-[var(--border)] glass sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
-              <div className="flex items-center space-x-4">
-                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center">
-                    <span className="font-bold text-white">P</span>
-                 </div>
-                 <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-400">
-                   Panel de Control
-                 </span>
+              <div className="flex items-center space-x-3">
+                <Image src="/logo.png" alt="Potenciarte" width={32} height={32} />
+                <div className="flex items-center gap-2">
+                  <LayoutDashboard className="w-4 h-4 text-zinc-500" />
+                  <span className="text-sm font-semibold text-zinc-300">
+                    Panel de Control
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center space-x-6">
-                <span className="text-sm text-zinc-400 hidden md:block">
-                  Hola, <span className="text-white">{user?.email}</span>
+              <div className="flex items-center space-x-5">
+                <span className="text-xs text-zinc-500 hidden md:block">
+                  {user?.email}
                 </span>
                 <button
                   onClick={signOut}
-                  className="flex items-center text-sm font-medium text-zinc-400 hover:text-red-400 transition-colors"
+                  className="flex items-center text-xs font-medium text-zinc-500 hover:text-red-400 transition-colors duration-300 gap-1.5"
                 >
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Cerrar Sesión
+                  <LogOut className="w-3.5 h-3.5" />
+                  Salir
                 </button>
               </div>
             </div>
           </div>
         </nav>
 
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           {/* Header */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4 animate-fadeIn">
             <div>
-              <h1 className="text-4xl font-bold text-white mb-2">Mis Eventos</h1>
-              <p className="text-zinc-400">Gestiona y monitorea todos tus eventos desde un solo lugar.</p>
+              <h1 className="text-3xl font-bold text-white mb-1">Mis Eventos</h1>
+              <p className="text-sm text-zinc-500">Gestiona y monitorea todos tus eventos.</p>
             </div>
             <Link
               href="/events/new"
-              className="flex items-center px-6 py-3 bg-white text-black font-bold rounded-full hover:bg-zinc-200 transition-all duration-300 transform hover:scale-105 shadow-[0_0_20px_-5px_rgba(255,255,255,0.3)]"
+              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white text-sm font-semibold rounded-xl hover:from-orange-600 hover:to-orange-700 transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-[var(--shadow-glow-primary)]"
             >
-              <Plus className="w-5 h-5 mr-2" />
-              Crear Nuevo Evento
+              <Plus className="w-4 h-4" />
+              Crear Evento
             </Link>
           </div>
 
           {/* Content */}
           {loading ? (
-             <div className="flex justify-center items-center h-64">
-               <Spinner />
-             </div>
+            <Spinner />
           ) : events.length === 0 ? (
-            <div className="bg-[#18181b] border border-[#27272a] rounded-2xl p-12 text-center">
-              <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Calendar className="w-8 h-8 text-zinc-500" />
+            <div className="premium-card p-16 text-center animate-scaleIn">
+              <div className="w-16 h-16 bg-[var(--surface-3)] rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <Calendar className="w-7 h-7 text-zinc-600" />
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">No hay eventos aún</h3>
-              <p className="text-zinc-400 mb-8 max-w-md mx-auto">
+              <h3 className="text-lg font-bold text-white mb-2">No hay eventos aún</h3>
+              <p className="text-sm text-zinc-500 mb-8 max-w-sm mx-auto">
                 Comienza creando tu primer evento para gestionar asistentes y generar diplomas.
               </p>
               <Link
                 href="/events/new"
-                className="inline-flex items-center text-orange-500 hover:text-orange-400 font-medium"
+                className="inline-flex items-center text-orange-500 hover:text-orange-400 font-semibold text-sm gap-1.5 transition-colors"
               >
-                Crear Evento <ArrowRight className="w-4 h-4 ml-2" />
+                Crear Evento <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {events.map((event) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-fadeIn">
+              {events.map((event, index) => (
                 <Link
                   key={event.id}
                   href={`/events/${event.id}`}
-                  className="group bg-[#18181b] border border-[#27272a] rounded-2xl p-6 hover:border-orange-500/50 transition-all duration-300 hover:shadow-[0_0_30px_-10px_rgba(249,115,22,0.15)] flex flex-col"
+                  className={`group premium-card p-6 flex flex-col stagger-${Math.min(index + 1, 5)} animate-slideUp`}
                 >
-                  <div className="flex items-start justify-between mb-6">
-                    <div className="bg-orange-500/10 p-3 rounded-xl group-hover:bg-orange-500/20 transition-colors">
-                      <Calendar className="w-6 h-6 text-orange-500" />
+                  <div className="flex items-start justify-between mb-5">
+                    <div className="bg-gradient-to-br from-orange-500/10 to-orange-600/5 p-3 rounded-xl group-hover:from-orange-500/20 group-hover:to-orange-600/10 transition-all duration-500">
+                      <Calendar className="w-5 h-5 text-orange-500" />
                     </div>
+                    {getStatusBadge(event.status)}
                   </div>
                   
-                  <h2 className="text-xl font-bold text-white mb-2 line-clamp-1 group-hover:text-orange-500 transition-colors">
+                  <h2 className="text-lg font-bold text-white mb-3 line-clamp-1 group-hover:text-orange-400 transition-colors duration-300">
                     {event.name}
                   </h2>
                   
-                  <div className="space-y-3 mt-auto">
-                    <div className="flex items-center text-zinc-400 text-sm">
-                      <Calendar className="w-4 h-4 mr-2" />
-                      {new Date(event.date).toLocaleDateString('es-CL', {
-                        weekday: 'long',
+                  <div className="space-y-2.5 mt-auto">
+                    <div className="flex items-center text-zinc-500 text-xs font-medium">
+                      <Calendar className="w-3.5 h-3.5 mr-2 text-zinc-600" />
+                      {new Date(event.eventDate || event.date).toLocaleDateString('es-CL', {
+                        weekday: 'short',
                         year: 'numeric',
-                        month: 'long',
+                        month: 'short',
                         day: 'numeric'
                       })}
                     </div>
-                    <div className="flex items-center text-zinc-400 text-sm">
-                      <MapPin className="w-4 h-4 mr-2" />
+                    <div className="flex items-center text-zinc-500 text-xs font-medium">
+                      <MapPin className="w-3.5 h-3.5 mr-2 text-zinc-600" />
                       {event.location}
                     </div>
+                  </div>
+
+                  {/* Bottom gradient line */}
+                  <div className="mt-5 pt-4 border-t border-[var(--border)] flex items-center justify-end">
+                    <span className="text-xs text-zinc-600 group-hover:text-orange-500 transition-colors flex items-center gap-1">
+                      Ver detalles <ArrowRight className="w-3 h-3" />
+                    </span>
                   </div>
                 </Link>
               ))}

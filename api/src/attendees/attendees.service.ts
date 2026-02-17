@@ -112,6 +112,28 @@ export class AttendeesService {
     return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
   }
 
+  async search(eventId: string, query: string) {
+    // Firestore doesn't support full-text search natively,
+    // so we fetch all and filter server-side (fine for event-scale data)
+    const snapshot = await this.db
+      .collection('events')
+      .doc(eventId)
+      .collection('attendees')
+      .get();
+
+    const q = query.toLowerCase();
+    const results = snapshot.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .filter((a: any) =>
+        (a.name as string)?.toLowerCase().includes(q) ||
+        (a.email as string)?.toLowerCase().includes(q) ||
+        (a.rut as string)?.toLowerCase().includes(q),
+      )
+      .slice(0, 15);
+
+    return results;
+  }
+
   async checkIn(eventId: string, attendeeId: string) {
     const attendeeRef = this.db
       .collection('events')

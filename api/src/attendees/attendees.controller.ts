@@ -7,6 +7,7 @@ import {
   UploadedFile,
   UseGuards,
   Body,
+  Query,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AttendeesService } from './attendees.service';
@@ -42,6 +43,14 @@ export class AttendeesController {
   @Get('sync')
   async getSyncData(@Param('eventId') eventId: string) {
     return this.attendeesService.getSyncData(eventId);
+  }
+
+  @Get('search')
+  async search(
+    @Param('eventId') eventId: string,
+    @Query('q') query: string,
+  ) {
+    return this.attendeesService.search(eventId, query || '');
   }
 
   @Get()
