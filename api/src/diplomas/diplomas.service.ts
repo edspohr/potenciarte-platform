@@ -20,8 +20,8 @@ export class DiplomasService {
     const fileRef = bucket.file(filename);
 
     await fileRef.save(file.buffer, {
-        contentType: 'application/pdf',
-        public: true // Optional: depending on needs
+      contentType: 'application/pdf',
+      public: true, // Optional: depending on needs
     });
 
     // We store the storage path or public URL
@@ -29,10 +29,10 @@ export class DiplomasService {
     // Let's store the full gs:// path or just the filename if we stick to one bucket.
     // Simpler: Store the public URL or media link if possible, or just the filename/path.
     // Let's store the cloud path.
-    
+
     await this.db.collection('events').doc(eventId).update({
-        diplomaTemplatePath: filename,
-        updatedAt: new Date().toISOString()
+      diplomaTemplatePath: filename,
+      updatedAt: new Date().toISOString(),
     });
 
     return { message: 'Template uploaded successfully', path: filename };
@@ -66,18 +66,18 @@ export class DiplomasService {
 
   async getPreviewStream(eventId: string) {
     const eventDoc = await this.db.collection('events').doc(eventId).get();
-    
+
     if (!eventDoc.exists) {
       throw new NotFoundException('Event not found');
     }
     const eventData = eventDoc.data();
-    
+
     if (!eventData?.diplomaTemplatePath) {
-        throw new NotFoundException('Diploma template not found');
+      throw new NotFoundException('Diploma template not found');
     }
 
     const pdfBuffer = await this.generateDiploma(
-      eventData.diplomaTemplatePath,
+      eventData.diplomaTemplatePath as string,
       'John Doe',
     );
     return pdfBuffer;
@@ -86,22 +86,25 @@ export class DiplomasService {
   async sendBatch(eventId: string) {
     const eventRef = this.db.collection('events').doc(eventId);
     const eventDoc = await eventRef.get();
-    
+
     if (!eventDoc.exists) {
-        throw new NotFoundException('Event not found');
+      throw new NotFoundException('Event not found');
     }
     const eventData = eventDoc.data();
-    
+
     if (!eventData?.diplomaTemplatePath) {
-        throw new NotFoundException('Diploma template not found');
+      throw new NotFoundException('Diploma template not found');
     }
 
-    const attendeesSnapshot = await eventRef.collection('attendees')
-        .where('checkedIn', '==', true)
-        .where('diplomaSent', '==', false)
-        .get();
+    const attendeesSnapshot = await eventRef
+      .collection('attendees')
+      .where('checkedIn', '==', true)
+      .where('diplomaSent', '==', false)
+      .get();
 
-    this.logger.log(`Found ${attendeesSnapshot.size} attendees to send diplomas to.`);
+    this.logger.log(
+      `Found ${attendeesSnapshot.size} attendees to send diplomas to.`,
+    );
 
     let sentCount = 0;
     const batch = this.db.batch();
@@ -111,33 +114,35 @@ export class DiplomasService {
       const attendee = doc.data();
       try {
         const pdfBuffer = await this.generateDiploma(
-          eventData.diplomaTemplatePath,
-          attendee.name,
+          eventData.diplomaTemplatePath as string,
+          attendee.name as string,
         );
         const sent = await this.emailService.sendDiploma(
-          attendee.email,
-          attendee.name,
-          eventData.name,
+          attendee.email as string,
+          attendee.name as string,
+          eventData.name as string,
           pdfBuffer,
         );
-
         if (sent) {
-            batch.update(doc.ref, { diplomaSent: true, diplomaSentAt: new Date().toISOString() });
-            batchCount++;
-            sentCount++;
+          batch.update(doc.ref, {
+            diplomaSent: true,
+            diplomaSentAt: new Date().toISOString(),
+          });
+          batchCount++;
+          sentCount++;
         }
       } catch (error) {
         this.logger.error(`Failed to send diploma to ${attendee.email}`, error);
       }
-      
+
       if (batchCount >= 400) {
-          await batch.commit();
-          batchCount = 0;
+        await batch.commit();
+        batchCount = 0;
       }
     }
-    
+
     if (batchCount > 0) {
-        await batch.commit();
+      await batch.commit();
     }
 
     return {

@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '../../../lib/auth'; // Ensure this path is correct based on your project structure
+import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ShieldCheck, User, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, User } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');

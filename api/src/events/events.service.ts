@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { EmailService } from '../common/email.service';
@@ -16,16 +16,17 @@ export class EventsService {
   async sendInvitations(eventId: string) {
     const eventRef = this.db.collection('events').doc(eventId);
     const eventDoc = await eventRef.get();
-    
+
     if (!eventDoc.exists) {
       throw new Error('Event not found');
     }
     const eventData = eventDoc.data();
     if (!eventData) {
-        throw new Error('Event data not found');
+      throw new Error('Event data not found');
     }
 
-    const attendeesSnapshot = await eventRef.collection('attendees')
+    const attendeesSnapshot = await eventRef
+      .collection('attendees')
       .where('ticketSent', '==', false)
       .get();
 
@@ -40,10 +41,10 @@ export class EventsService {
     for (const doc of attendeesSnapshot.docs) {
       const attendee = doc.data();
       const success = await this.emailService.sendInvitation(
-        attendee.email,
-        attendee.name,
+        attendee.email as string,
+        attendee.name as string,
         doc.id,
-        eventData.name,
+        eventData.name as string,
       );
 
       if (success) {
@@ -51,16 +52,16 @@ export class EventsService {
         batchCount++;
         sentCount++;
       }
-      
+
       // Commit batch every 500 ops
       if (batchCount >= 400) {
-          await batch.commit();
-          batchCount = 0;
+        await batch.commit();
+        batchCount = 0;
       }
     }
-    
+
     if (batchCount > 0) {
-        await batch.commit();
+      await batch.commit();
     }
 
     return {
@@ -71,46 +72,54 @@ export class EventsService {
 
   async create(createEventDto: CreateEventDto) {
     const eventData = {
-        ...createEventDto,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        status: 'DRAFT'
+      ...createEventDto,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: 'DRAFT',
     };
     const res = await this.db.collection('events').add(eventData);
     return { id: res.id, ...eventData };
   }
 
   async findAll() {
-    const snapshot = await this.db.collection('events').orderBy('eventDate', 'asc').get();
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const snapshot = await this.db
+      .collection('events')
+      .orderBy('eventDate', 'asc')
+      .get();
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
   }
 
   async findOne(id: string) {
     const doc = await this.db.collection('events').doc(id).get();
     if (!doc.exists) return null;
-    
+
     const data = doc.data();
-    
+
     // Count attendees in subcollection
-    // Note: count() aggregation is available in newer firebase-admin versions. 
+    // Note: count() aggregation is available in newer firebase-admin versions.
     // If not, we might need a workaround, but recent versions support it.
-    const attendeesCountSnapshot = await this.db.collection('events').doc(id).collection('attendees').count().get();
+    const attendeesCountSnapshot = await this.db
+      .collection('events')
+      .doc(id)
+      .collection('attendees')
+      .count()
+      .get();
     const attendeesCount = attendeesCountSnapshot.data().count;
 
-    return { 
-        id: doc.id, 
-        ...data,
-        _count: {
-            attendees: attendeesCount
-        }
+    return {
+      id: doc.id,
+      ...data,
+      _count: {
+        attendees: attendeesCount,
+      },
     };
   }
 
   async update(id: string, updateEventDto: UpdateEventDto) {
     const docRef = this.db.collection('events').doc(id);
     await docRef.update({
-        ...updateEventDto,
-        updatedAt: new Date().toISOString()
+      ...updateEventDto,
+      updatedAt: new Date().toISOString(),
     });
     const doc = await docRef.get();
     return { id: doc.id, ...doc.data() };

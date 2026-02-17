@@ -75,7 +75,10 @@ export class AttendeesService {
   async createMany(eventId: string, data: any[]) {
     if (data.length === 0) return;
 
-    const collectionRef = this.db.collection('events').doc(eventId).collection('attendees');
+    const collectionRef = this.db
+      .collection('events')
+      .doc(eventId)
+      .collection('attendees');
     const batchArray = [];
     let batchIndex = 0;
     batchArray[batchIndex] = this.db.batch();
@@ -99,15 +102,22 @@ export class AttendeesService {
   }
 
   async findAll(eventId: string) {
-    const snapshot = await this.db.collection('events').doc(eventId).collection('attendees')
+    const snapshot = await this.db
+      .collection('events')
+      .doc(eventId)
+      .collection('attendees')
       .orderBy('name', 'asc')
       .get();
-    
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
   }
 
   async checkIn(eventId: string, attendeeId: string) {
-    const attendeeRef = this.db.collection('events').doc(eventId).collection('attendees').doc(attendeeId);
+    const attendeeRef = this.db
+      .collection('events')
+      .doc(eventId)
+      .collection('attendees')
+      .doc(attendeeId);
     const attendeeDoc = await attendeeRef.get();
 
     if (!attendeeDoc.exists) {
@@ -115,11 +125,11 @@ export class AttendeesService {
     }
 
     const attendee = attendeeDoc.data();
-    
+
     // In Firestore subcollection, eventId is implicit in path, but we store it in doc too.
     // Verification is good practice.
     if (attendee?.eventId !== eventId) {
-        throw new BadRequestException('Attendee does not belong to this event');
+      throw new BadRequestException('Attendee does not belong to this event');
     }
 
     if (attendee?.checkedIn) {
@@ -129,24 +139,30 @@ export class AttendeesService {
     await attendeeRef.update({
       checkedIn: true,
       checkInTime: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
     });
-    
+
     const updatedDoc = await attendeeRef.get();
     return { id: updatedDoc.id, ...updatedDoc.data() };
   }
 
   async getSyncData(eventId: string) {
-      return this.findAll(eventId);
+    return this.findAll(eventId);
   }
 
   async getStats(eventId: string) {
-    const attendeesRef = this.db.collection('events').doc(eventId).collection('attendees');
-    
+    const attendeesRef = this.db
+      .collection('events')
+      .doc(eventId)
+      .collection('attendees');
+
     // Using count() aggregation if supported by current SDK, otherwise fallback to get().size
     // Assuming standard heavy read is okay for now or count() works.
     const totalSnapshot = await attendeesRef.count().get();
-    const checkedInSnapshot = await attendeesRef.where('checkedIn', '==', true).count().get();
+    const checkedInSnapshot = await attendeesRef
+      .where('checkedIn', '==', true)
+      .count()
+      .get();
 
     const total = totalSnapshot.data().count;
     const checkedIn = checkedInSnapshot.data().count;
