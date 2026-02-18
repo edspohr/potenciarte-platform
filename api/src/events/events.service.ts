@@ -70,16 +70,27 @@ export class EventsService {
     };
   }
 
+  // Helper to remove undefined values (Firestore doesn't accept them)
+  private removeUndefined<T extends Record<string, any>>(obj: T): Partial<T> {
+    const cleaned: any = {};
+    Object.keys(obj).forEach((key) => {
+      if (obj[key] !== undefined) {
+        cleaned[key] = obj[key];
+      }
+    });
+    return cleaned;
+  }
+
   async create(createEventDto: CreateEventDto) {
     try {
       this.logger.log('Creating new event...');
-      const eventData = {
+      const eventData = this.removeUndefined({
         ...createEventDto,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         status: 'DRAFT',
-      };
-      
+      });
+
       const res = await this.db.collection('events').add(eventData);
       this.logger.log(`Event created with ID: ${res.id}`);
       return { id: res.id, ...eventData };
@@ -125,10 +136,11 @@ export class EventsService {
 
   async update(id: string, updateEventDto: UpdateEventDto) {
     const docRef = this.db.collection('events').doc(id);
-    await docRef.update({
+    const updateData = this.removeUndefined({
       ...updateEventDto,
       updatedAt: new Date().toISOString(),
     });
+    await docRef.update(updateData);
     const doc = await docRef.get();
     return { id: doc.id, ...doc.data() };
   }
