@@ -7,9 +7,16 @@ import { AttendeesModule } from './attendees/attendees.module';
 import { EmailModule } from './common/email.module';
 import { DiplomasModule } from './diplomas/diplomas.module';
 import { AuthController } from './auth/auth.controller'; // Assuming exists
+import { FirestoreModule } from './firestore/firestore.module';
 
 @Module({
-  imports: [EventsModule, AttendeesModule, EmailModule, DiplomasModule],
+  imports: [
+    FirestoreModule,
+    EventsModule,
+    AttendeesModule,
+    EmailModule,
+    DiplomasModule,
+  ],
   controllers: [AppController, AuthController],
   providers: [AppService, UsersService],
 })
