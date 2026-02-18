@@ -18,6 +18,12 @@ interface Event {
   eventDate: string;
   location: string;
   status: string;
+  _progress?: {
+    hasAttendees: boolean;
+    hasTemplate: boolean;
+    hasSentTickets: boolean;
+    isPublished: boolean;
+  };
 }
 
 export default function Dashboard() {
@@ -63,6 +69,43 @@ export default function Dashboard() {
     );
   };
 
+  const renderStepper = (event: Event) => {
+    const steps = [
+      { id: 1, label: 'Evento Creado', done: true },
+      { id: 2, label: 'Asistentes', done: event._progress?.hasAttendees },
+      { id: 3, label: 'Plantilla', done: event._progress?.hasTemplate },
+      { id: 4, label: 'Invitaciones', done: event._progress?.hasSentTickets },
+      { id: 5, label: 'Publicado', done: event._progress?.isPublished },
+    ];
+
+    return (
+      <div className="mb-8 px-2">
+        <div className="flex items-center justify-between mb-2">
+          {steps.map((step, i) => (
+            <div key={step.id} className="flex items-center flex-1 last:flex-none">
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold border-2 transition-all duration-500 ${
+                step.done 
+                  ? 'bg-orange-500 border-orange-500 text-white shadow-[0_0_10px_rgba(249,115,22,0.3)]' 
+                  : 'bg-zinc-900 border-zinc-800 text-zinc-600'
+              }`}>
+                {step.done ? '✓' : step.id}
+              </div>
+              {i < steps.length - 1 && (
+                <div className={`h-[2px] flex-1 mx-2 transition-all duration-700 ${
+                  steps[i+1].done ? 'bg-orange-500' : 'bg-zinc-800'
+                }`} />
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-between">
+          <span className="text-[9px] font-black uppercase tracking-tighter text-orange-500">{steps.find(s => !s.done)?.label || 'Listo'}</span>
+          <span className="text-[9px] font-black uppercase tracking-tighter text-zinc-600">Paso {steps.filter(s => s.done).length} de 5</span>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-[var(--background)] text-white">
@@ -72,11 +115,17 @@ export default function Dashboard() {
             <div className="flex justify-between items-center h-16">
               <div className="flex items-center space-x-3">
                 <Image src="/logo.png" alt="Potenciarte" width={32} height={32} />
-                <div className="flex items-center gap-2">
-                  <LayoutDashboard className="w-4 h-4 text-zinc-500" />
-                  <span className="text-sm font-semibold text-zinc-300">
-                    Panel de Control
-                  </span>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <LayoutDashboard className="w-4 h-4 text-zinc-500" />
+                    <span className="text-sm font-semibold text-zinc-300">Panel</span>
+                  </div>
+                  {role === 'ADMIN' && (
+                    <Link href="/analytics" className="flex items-center gap-2 text-zinc-500 hover:text-orange-500 transition-colors">
+                      <Globe className="w-4 h-4" />
+                      <span className="text-sm font-semibold">Analytics</span>
+                    </Link>
+                  )}
                 </div>
               </div>
               <div className="flex items-center space-x-5">
@@ -165,7 +214,7 @@ export default function Dashboard() {
                     <div className="space-y-2.5 mt-auto">
                       <div className="flex items-center text-zinc-500 text-xs font-medium">
                         <Calendar className="w-3.5 h-3.5 mr-2 text-zinc-600" />
-                        {new Date(event.eventDate || event.date).toLocaleDateString('es-CL', {
+                        {new Date(event.eventDate).toLocaleDateString('es-CL', {
                           weekday: 'short',
                           year: 'numeric',
                           month: 'short',
@@ -180,7 +229,7 @@ export default function Dashboard() {
 
                     <div className="mt-5 pt-4 border-t border-[var(--border)] flex items-center justify-between">
                       <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">
-                        {isDraft ? 'Incompleto' : (role === 'ADMIN' ? 'Administrar' : 'Operación')}
+                        {isDraft ? 'Configuración' : (role === 'ADMIN' ? 'Administrar' : 'Operación')}
                       </span>
                       <div className="flex items-center gap-2">
                         {isDraft && role === 'ADMIN' ? (
@@ -243,7 +292,7 @@ export default function Dashboard() {
               <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50">
                 <div>
                   <h3 className="text-xl font-bold text-white leading-tight">{selectedDraft.name}</h3>
-                  <p className="text-xs text-zinc-500 mt-1 uppercase tracking-widest font-bold">Control de Borrador</p>
+                  <p className="text-xs text-zinc-500 mt-1 uppercase tracking-widest font-bold">Estado del Lanzamiento</p>
                 </div>
                 <button 
                   onClick={() => setSelectedDraft(null)}
@@ -254,83 +303,92 @@ export default function Dashboard() {
                 </button>
               </div>
 
-              {/* Modal Options Grid */}
-              <div className="p-6 grid grid-cols-1 gap-4">
-                {/* Option A: Resume */}
-                <button
-                  onClick={() => {
-                    setSelectedDraft(null);
-                    router.push(`/events/${selectedDraft.id}`);
-                  }}
-                  className="group flex items-center gap-4 p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 hover:bg-indigo-500/10 hover:border-indigo-500/20 transition-all text-left"
-                >
-                  <div className="p-3 bg-indigo-500/20 rounded-xl text-indigo-400 group-hover:scale-110 transition-transform">
-                    <Settings className="w-6 h-6" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-indigo-100 italic">Resumir Configuración</p>
-                    <p className="text-xs text-indigo-300/60 mt-0.5">Ve al dashboard del evento para añadir detalles.</p>
-                  </div>
-                  <ArrowRight className="w-5 h-5 text-indigo-500/40 group-hover:translate-x-1 transition-transform" />
-                </button>
+              <div className="p-6">
+                {/* Stepper Implementation */}
+                {renderStepper(selectedDraft)}
 
-                {/* Option B: Publish */}
-                <button
-                  onClick={async () => {
-                    setIsPublishing(true);
-                    try {
-                      await api.patch(`/events/${selectedDraft.id}`, { status: 'PUBLISHED' });
-                      toast.success('¡Evento publicado exitosamente!');
+                {/* Modal Options Grid */}
+                <div className="grid grid-cols-1 gap-4">
+                  {/* Option A: Resume */}
+                  <button
+                    onClick={() => {
                       setSelectedDraft(null);
-                      fetchEvents();
-                    } catch (error) {
-                      toast.error('Error al publicar el evento');
-                    } finally {
-                      setIsPublishing(false);
-                    }
-                  }}
-                  disabled={isPublishing || isDeleting}
-                  className="group flex items-center gap-4 p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 hover:bg-emerald-500/10 hover:border-emerald-500/20 transition-all text-left disabled:opacity-50"
-                >
-                  <div className="p-3 bg-emerald-500/20 rounded-xl text-emerald-400 group-hover:scale-110 transition-transform">
-                    {isPublishing ? <Spinner /> : <Globe className="w-6 h-6" />}
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-emerald-100 italic">Publicar de Inmediato</p>
-                    <p className="text-xs text-emerald-300/60 mt-0.5">Haz que el evento sea visible para operaciones.</p>
-                  </div>
-                  <Upload className="w-5 h-5 text-emerald-500/40 group-hover:-translate-y-1 transition-transform" />
-                </button>
+                      router.push(`/events/${selectedDraft.id}`);
+                    }}
+                    className="group flex items-center gap-4 p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 hover:bg-indigo-500/10 hover:border-indigo-500/20 transition-all text-left"
+                  >
+                    <div className="p-3 bg-indigo-500/20 rounded-xl text-indigo-400 group-hover:scale-110 transition-transform">
+                      <Settings className="w-6 h-6" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-bold text-indigo-100 italic">Configurar Detalles</p>
+                      <p className="text-xs text-indigo-300/60 mt-0.5">Sube asistentes o configura la plantilla.</p>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-indigo-500/40 group-hover:translate-x-1 transition-transform" />
+                  </button>
 
-                {/* Option C: Delete */}
-                <button
-                  onClick={async () => {
-                    if (confirm('¿Estás seguro de que deseas eliminar este borrador? Esta acción no se puede deshacer.')) {
-                      setIsDeleting(true);
+                  {/* Option B: Publish */}
+                  <button
+                    onClick={async () => {
+                      setIsPublishing(true);
                       try {
-                        await api.delete(`/events/${selectedDraft.id}`);
-                        toast.success('Borrador eliminado correctamente');
+                        await api.patch(`/events/${selectedDraft.id}`, { status: 'PUBLISHED' });
+                        toast.success('¡Evento publicado exitosamente!');
                         setSelectedDraft(null);
                         fetchEvents();
                       } catch (error) {
-                        toast.error('Error al eliminar el borrador');
+                        toast.error('Error al publicar el evento');
                       } finally {
-                        setIsDeleting(false);
+                        setIsPublishing(false);
                       }
-                    }
-                  }}
-                  disabled={isPublishing || isDeleting}
-                  className="group flex items-center gap-4 p-4 rounded-2xl bg-red-500/5 border border-red-500/10 hover:bg-red-500/10 hover:border-red-500/20 transition-all text-left disabled:opacity-50"
-                >
-                  <div className="p-3 bg-red-500/20 rounded-xl text-red-400 group-hover:scale-110 transition-transform">
-                    {isDeleting ? <Spinner /> : <Trash2 className="w-6 h-6" />}
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-red-100 italic">Eliminar Borrador</p>
-                    <p className="text-xs text-red-300/60 mt-0.5">Borra permanentemente este evento.</p>
-                  </div>
-                  <AlertOctagon className="w-5 h-5 text-red-500/40 group-hover:animate-pulse" />
-                </button>
+                    }}
+                    disabled={isPublishing || isDeleting || !selectedDraft._progress?.hasAttendees}
+                    className="group flex items-center gap-4 p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 hover:bg-emerald-500/10 hover:border-emerald-500/20 transition-all text-left disabled:opacity-50"
+                  >
+                    <div className="p-3 bg-emerald-500/20 rounded-xl text-emerald-400 group-hover:scale-110 transition-transform">
+                      {isPublishing ? <Spinner /> : <Globe className="w-6 h-6" />}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-bold text-emerald-100 italic">Publicar Evento</p>
+                      <p className="text-xs text-emerald-300/60 mt-0.5">
+                        {!selectedDraft._progress?.hasAttendees 
+                          ? 'Debes cargar asistentes primero' 
+                          : 'Habilitar para registro y operaciones.'}
+                      </p>
+                    </div>
+                    <Upload className="w-5 h-5 text-emerald-500/40 group-hover:-translate-y-1 transition-transform" />
+                  </button>
+
+                  {/* Option C: Delete */}
+                  <button
+                    onClick={async () => {
+                      if (confirm('¿Estás seguro de que deseas eliminar este borrador?')) {
+                        setIsDeleting(true);
+                        try {
+                          await api.delete(`/events/${selectedDraft.id}`);
+                          toast.success('Borrador eliminado correctamente');
+                          setSelectedDraft(null);
+                          fetchEvents();
+                        } catch (error) {
+                          toast.error('Error al eliminar el borrador');
+                        } finally {
+                          setIsDeleting(false);
+                        }
+                      }
+                    }}
+                    disabled={isPublishing || isDeleting}
+                    className="group flex items-center gap-4 p-4 rounded-2xl bg-red-500/5 border border-red-500/10 hover:bg-red-500/10 hover:border-red-500/20 transition-all text-left disabled:opacity-50"
+                  >
+                    <div className="p-3 bg-red-500/20 rounded-xl text-red-400 group-hover:scale-110 transition-transform">
+                      {isDeleting ? <Spinner /> : <Trash2 className="w-6 h-6" />}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-bold text-red-100 italic">Eliminar Borrador</p>
+                      <p className="text-xs text-red-300/60 mt-0.5">Borra permanentemente este evento.</p>
+                    </div>
+                    <AlertOctagon className="w-5 h-5 text-red-500/40 group-hover:animate-pulse" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>

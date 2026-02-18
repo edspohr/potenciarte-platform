@@ -35,7 +35,7 @@ export class EventsService {
     );
 
     let sentCount = 0;
-    const batch = this.db.batch();
+    let batch = this.db.batch();
     let batchCount = 0;
 
     for (const doc of attendeesSnapshot.docs) {
@@ -53,9 +53,10 @@ export class EventsService {
         sentCount++;
       }
 
-      // Commit batch every 500 ops
+      // Commit batch every 500 ops (Firestore limit)
       if (batchCount >= 400) {
         await batch.commit();
+        batch = this.db.batch(); // Create a new batch for the remaining items
         batchCount = 0;
       }
     }
@@ -146,24 +147,31 @@ export class EventsService {
     const doc = await this.db.collection('events').doc(id).get();
     if (!doc.exists) return null;
 
-    const data = doc.data();
+    const eventData = doc.data() as any;
 
-    // Count attendees in subcollection
-    // Note: count() aggregation is available in newer firebase-admin versions.
-    // If not, we might need a workaround, but recent versions support it.
-    const attendeesCountSnapshot = await this.db
+    // Aggregations for Stepper and Stats
+    const attendeesSnapshot = await this.db
       .collection('events')
       .doc(id)
       .collection('attendees')
-      .count()
       .get();
-    const attendeesCount = attendeesCountSnapshot.data().count;
+
+    const attendeesCount = attendeesSnapshot.size;
+    const hasSentTickets = attendeesSnapshot.docs.some(
+      (d) => d.data().ticketSent === true,
+    );
 
     return {
       id: doc.id,
-      ...(this.serializeFirestoreData(data) as Record<string, unknown>),
+      ...(this.serializeFirestoreData(eventData) as Record<string, unknown>),
       _count: {
         attendees: attendeesCount,
+      },
+      _progress: {
+        hasAttendees: attendeesCount > 0,
+        hasTemplate: !!eventData?.diplomaTemplatePath,
+        hasSentTickets: hasSentTickets,
+        isPublished: eventData?.status === 'PUBLISHED',
       },
     };
   }

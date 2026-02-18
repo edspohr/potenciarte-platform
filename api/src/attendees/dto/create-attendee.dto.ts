@@ -17,7 +17,7 @@ export class CreateAttendeeDto {
   @IsString()
   rut?: string;
 
-  @IsUUID()
+  @IsString()
   eventId: string;
 
   @IsOptional()

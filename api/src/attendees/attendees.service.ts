@@ -134,7 +134,11 @@ export class AttendeesService {
     return results;
   }
 
-  async checkIn(eventId: string, attendeeId: string) {
+  async checkIn(
+    eventId: string,
+    attendeeId: string,
+    staffInfo?: { uid: string; email: string },
+  ) {
     const attendeeRef = this.db
       .collection('events')
       .doc(eventId)
@@ -148,8 +152,6 @@ export class AttendeesService {
 
     const attendee = attendeeDoc.data();
 
-    // In Firestore subcollection, eventId is implicit in path, but we store it in doc too.
-    // Verification is good practice.
     if (attendee?.eventId !== eventId) {
       throw new BadRequestException('Attendee does not belong to this event');
     }
@@ -158,11 +160,18 @@ export class AttendeesService {
       return { id: attendeeDoc.id, ...attendee, status: 'already_checked_in' };
     }
 
-    await attendeeRef.update({
+    const updateData: any = {
       checkedIn: true,
       checkInTime: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    });
+    };
+
+    if (staffInfo) {
+      updateData.checkedInByUID = staffInfo.uid;
+      updateData.checkedInByEmail = staffInfo.email;
+    }
+
+    await attendeeRef.update(updateData);
 
     const updatedDoc = await attendeeRef.get();
     return { id: updatedDoc.id, ...updatedDoc.data() };
@@ -178,8 +187,6 @@ export class AttendeesService {
       .doc(eventId)
       .collection('attendees');
 
-    // Using count() aggregation if supported by current SDK, otherwise fallback to get().size
-    // Assuming standard heavy read is okay for now or count() works.
     const totalSnapshot = await attendeesRef.count().get();
     const checkedInSnapshot = await attendeesRef
       .where('checkedIn', '==', true)
@@ -192,6 +199,7 @@ export class AttendeesService {
     return {
       total,
       checkedIn,
+      pending: total - checkedIn,
       percentage: total > 0 ? Math.round((checkedIn / total) * 100) : 0,
     };
   }

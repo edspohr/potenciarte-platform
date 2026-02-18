@@ -107,7 +107,7 @@ export class DiplomasService {
     );
 
     let sentCount = 0;
-    const batch = this.db.batch();
+    let batch = this.db.batch();
     let batchCount = 0;
 
     for (const doc of attendeesSnapshot.docs) {
@@ -137,6 +137,7 @@ export class DiplomasService {
 
       if (batchCount >= 400) {
         await batch.commit();
+        batch = this.db.batch();
         batchCount = 0;
       }
     }

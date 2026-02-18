@@ -7,8 +7,10 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import { ArrowLeft, Check, X, Camera, Search, AlertTriangle, Users } from 'lucide-react';
 import Link from 'next/link';
 import { Attendee } from '@/types';
+import { useAuth } from '@/context/AuthContext';
 
 export default function CheckInPage({ params }: { params: Promise<{ id: string }> }) {
+  const { user } = useAuth();
   const resolvedParams = use(params);
   const eventId = resolvedParams.id;
 
@@ -33,6 +35,7 @@ export default function CheckInPage({ params }: { params: Promise<{ id: string }
     try {
       const response = await api.post(`/events/${eventId}/attendees/check-in`, {
         attendeeId,
+        staffInfo: user ? { uid: user.uid, email: user.email } : undefined,
       });
 
       const data = response.data;
@@ -73,7 +76,7 @@ export default function CheckInPage({ params }: { params: Promise<{ id: string }
       handleCheckIn(decodedText);
       setTimeout(() => setLastScannedResult(null), 3000);
     }
-  }, [lastScannedResult, handleCheckIn]);
+  }, [lastScannedResult, handleCheckIn, user]);
 
   useEffect(() => {
     if (activeTab === 'scan' && !scannerRef.current) {

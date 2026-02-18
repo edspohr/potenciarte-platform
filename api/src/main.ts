@@ -85,12 +85,21 @@ export const createNestServer = async (expressInstance: express.Express) => {
   app.enableCors({
     origin: [
       'https://potenciarte-platform-v1.web.app',
-      'https://potenciarte-platform-v1.firebaseapp.com', // Firebase creates this alias too
+      'https://potenciarte-platform-v1.firebaseapp.com',
       'http://localhost:3000',
     ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
+
+  // Enable validation in production
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+    }),
+  );
+
   await app.init();
   return app;
 };
