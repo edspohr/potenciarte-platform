@@ -146,14 +146,16 @@ export default function Dashboard() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-fadeIn">
               {events.map((event, index) => {
-                const isDraft = event.status === 'DRAFT';
+                const status = (event.status || 'DRAFT').toUpperCase();
+                const isDraft = status === 'DRAFT';
+                
                 const cardContent = (
                   <>
                     <div className="flex items-start justify-between mb-5">
                       <div className="bg-gradient-to-br from-orange-500/10 to-orange-600/5 p-3 rounded-xl group-hover:from-orange-500/20 group-hover:to-orange-600/10 transition-all duration-500">
                         <Calendar className="w-5 h-5 text-orange-500" />
                       </div>
-                      {getStatusBadge(event.status)}
+                      {getStatusBadge(status)}
                     </div>
                     
                     <h2 className="text-lg font-bold text-white mb-3 line-clamp-1 group-hover:text-orange-400 transition-colors duration-300">
@@ -178,24 +180,39 @@ export default function Dashboard() {
 
                     <div className="mt-5 pt-4 border-t border-[var(--border)] flex items-center justify-between">
                       <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">
-                        {isDraft ? 'Configuración' : (role === 'ADMIN' ? 'Administrar' : 'Operación')}
+                        {isDraft ? 'Incompleto' : (role === 'ADMIN' ? 'Administrar' : 'Operación')}
                       </span>
-                      <span className="text-xs text-zinc-400 group-hover:text-orange-500 transition-colors flex items-center gap-1.5 font-semibold">
-                        {isDraft ? 'Opciones de Borrador' : (role === 'ADMIN' ? 'Ver detalles' : 'Ir a Check-in')} <ArrowRight className="w-3 h-3" />
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {isDraft && role === 'ADMIN' ? (
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setSelectedDraft(event);
+                            }}
+                            className="px-3 py-1 bg-zinc-800 text-white text-[10px] font-bold rounded-lg hover:bg-zinc-700 transition-colors"
+                          >
+                            Gestionar
+                          </button>
+                        ) : (
+                          <span className="text-xs text-zinc-400 group-hover:text-orange-500 transition-colors flex items-center gap-1.5 font-semibold">
+                            {role === 'ADMIN' ? 'Ver detalles' : 'Ir a Check-in'} <ArrowRight className="w-3 h-3" />
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </>
                 );
 
                 if (isDraft && role === 'ADMIN') {
                   return (
-                    <button
+                    <div
                       key={event.id}
                       onClick={() => setSelectedDraft(event)}
-                      className={`group premium-card p-6 flex flex-col text-left w-full stagger-${Math.min(index + 1, 5)} animate-slideUp`}
+                      className={`group premium-card p-6 flex flex-col cursor-pointer stagger-${Math.min(index + 1, 5)} animate-slideUp`}
                     >
                       {cardContent}
-                    </button>
+                    </div>
                   );
                 }
 
@@ -215,9 +232,9 @@ export default function Dashboard() {
 
         {/* Draft Control Modal */}
         {selectedDraft && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
             <div 
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fadeIn" 
+              className="absolute inset-0 bg-black/70 backdrop-blur-md animate-fadeIn" 
               onClick={() => !isPublishing && !isDeleting && setSelectedDraft(null)} 
             />
             
