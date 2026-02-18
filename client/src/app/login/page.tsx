@@ -51,8 +51,32 @@ export default function LoginPage() {
   const [linkingCredential, setLinkingCredential] = useState<AuthCredential | null>(null);
   const [linkingEmail, setLinkingEmail] = useState<string | null>(null);
 
-  const { signIn, signUp, signInWithGoogle } = useAuth();
+  // Password Reset State
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+
+  const { signIn, signUp, signInWithGoogle, resetPassword } = useAuth();
   const router = useRouter();
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetEmail) {
+      toast.error('Ingresa tu correo');
+      return;
+    }
+    setLoading(true);
+    try {
+      await resetPassword(resetEmail);
+      toast.success('Correo de recuperación enviado');
+      setShowResetModal(false);
+      setResetEmail('');
+    } catch (error) {
+      console.error(error);
+      toast.error('Error al enviar el correo');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -308,6 +332,17 @@ export default function LoginPage() {
                 {tab === 'register' && !linkingEmail && (
                   <p className="mt-1.5 text-[11px] text-zinc-600">Mínimo 6 caracteres</p>
                 )}
+                {tab === 'login' && !linkingEmail && (
+                  <div className="mt-2 text-right">
+                     <button
+                        type="button"
+                        onClick={() => setShowResetModal(true)}
+                        className="text-xs text-orange-500 hover:text-orange-400 font-medium transition-colors"
+                     >
+                        ¿Olvidaste tu contraseña?
+                     </button>
+                  </div>
+                )}
               </div>
 
               {/* Submit */}
@@ -391,6 +426,49 @@ export default function LoginPage() {
           </p>
         </div>
       </div>
+      
+      {/* Reset Password Modal */}
+      {showResetModal && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-[var(--surface-1)] border border-[var(--border)] rounded-2xl p-6 w-full max-w-sm shadow-2xl animate-scaleUp">
+            <h3 className="text-lg font-bold text-white mb-2">Restablecer contraseña</h3>
+            <p className="text-sm text-zinc-400 mb-4">
+              Ingresa tu correo y te enviaremos un enlace para recuperar tu cuenta.
+            </p>
+            
+            <form onSubmit={handleResetPassword}>
+              <div className="relative mb-4">
+                  <input
+                    type="email"
+                    required
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    placeholder="tucorreo@ejemplo.com"
+                    className="block w-full pl-11 pr-4 py-3 border border-[var(--border)] rounded-xl bg-black/20 text-white placeholder-zinc-600 text-sm focus:border-orange-500 transition-all outline-none"
+                  />
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+              </div>
+              
+              <div className="flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowResetModal(false)}
+                  className="px-4 py-2 rounded-lg text-sm text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-orange-600 hover:bg-orange-700 transition-colors disabled:opacity-50"
+                >
+                   {loading ? 'Enviando...' : 'Enviar enlace'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
