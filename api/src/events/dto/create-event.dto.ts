@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsDateString, IsUrl } from 'class-validator';
+import { IsString, IsOptional, IsDateString } from 'class-validator';
 
 export class CreateEventDto {
   @IsString()
@@ -12,11 +12,11 @@ export class CreateEventDto {
   description?: string;
 
   @IsOptional()
-  @IsUrl()
+  @IsString()
   headerImage?: string;
 
   @IsOptional()
-  @IsUrl()
+  @IsString()
   signatureImage?: string;
 
   @IsDateString()

@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ExpressAdapter } from '@nestjs/platform-express';
-import { ValidationPipe, InternalServerErrorException } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import * as express from 'express';
 import * as admin from 'firebase-admin';
 import { ServiceAccount } from 'firebase-admin';
@@ -48,8 +48,12 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
-      forbidNonWhitelisted: true,
+      forbidNonWhitelisted: false, // Allow extra fields for now
       transform: true,
+      exceptionFactory: (errors) => {
+        console.log('Validation errors:', JSON.stringify(errors, null, 2));
+        return new ValidationPipe().createExceptionFactory()(errors);
+      },
     }),
   );
 
