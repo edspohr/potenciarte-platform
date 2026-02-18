@@ -1,9 +1,17 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, User, signInWithEmailAndPassword, signOut as firebaseSignOut } from 'firebase/auth';
+import {
+  onAuthStateChanged,
+  User,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
+  signOut as firebaseSignOut,
+} from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 
 interface AuthContextType {
@@ -11,6 +19,8 @@ interface AuthContextType {
   role: string | null;
   loading: boolean;
   signIn: (email: string, pass: string) => Promise<void>;
+  signUp: (email: string, pass: string, name: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -19,8 +29,28 @@ const AuthContext = createContext<AuthContextType>({
   role: null,
   loading: true,
   signIn: async () => {},
+  signUp: async () => {},
+  signInWithGoogle: async () => {},
   signOut: async () => {},
 });
+
+const fetchOrCreateUserRole = async (user: User): Promise<string> => {
+  const userRef = doc(db, 'users', user.uid);
+  const userDoc = await getDoc(userRef);
+
+  if (userDoc.exists()) {
+    return (userDoc.data()?.role as string) || 'STAFF';
+  }
+
+  // New user — create with STAFF role
+  await setDoc(userRef, {
+    email: user.email,
+    displayName: user.displayName || '',
+    role: 'STAFF',
+    createdAt: new Date().toISOString(),
+  });
+  return 'STAFF';
+};
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -29,27 +59,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      
-      if (user) {
-        // Fetch user role from Firestore
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setUser(firebaseUser);
+
+      if (firebaseUser) {
         try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            setRole(userData?.role || null);
-          } else {
-            setRole(null);
-          }
+          const userRole = await fetchOrCreateUserRole(firebaseUser);
+          setRole(userRole);
         } catch (error) {
           console.error('Error fetching user role:', error);
-          setRole(null);
+          setRole('STAFF');
         }
       } else {
         setRole(null);
       }
-      
+
       setLoading(false);
     });
     return () => unsubscribe();
@@ -57,7 +81,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signIn = async (email: string, pass: string) => {
     await signInWithEmailAndPassword(auth, email, pass);
-    router.push('/'); 
+    router.push('/dashboard');
+  };
+
+  const signUp = async (email: string, pass: string, name: string) => {
+    const credential = await createUserWithEmailAndPassword(auth, email, pass);
+    // Create user doc with STAFF role and display name
+    await setDoc(doc(db, 'users', credential.user.uid), {
+      email,
+      displayName: name,
+      role: 'STAFF',
+      createdAt: new Date().toISOString(),
+    });
+    router.push('/dashboard');
+  };
+
+  const signInWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    const credential = await signInWithPopup(auth, provider);
+    // fetchOrCreateUserRole handles new vs existing Google users
+    await fetchOrCreateUserRole(credential.user);
+    router.push('/dashboard');
   };
 
   const signOut = async () => {
@@ -67,7 +111,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, role, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, role, loading, signIn, signUp, signInWithGoogle, signOut }}>
       {children}
     </AuthContext.Provider>
   );
