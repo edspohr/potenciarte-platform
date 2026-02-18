@@ -5,9 +5,11 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import api from '@/lib/api';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Plus, Calendar, MapPin, LogOut, ArrowRight, LayoutDashboard } from 'lucide-react';
+import { Plus, Calendar, MapPin, LogOut, ArrowRight, LayoutDashboard, Settings, Globe, Upload, Trash2, X, AlertOctagon } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import Spinner from '@/components/Spinner';
+import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 
 interface Event {
   id: string;
@@ -21,20 +23,25 @@ interface Event {
 export default function Dashboard() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedDraft, setSelectedDraft] = useState<Event | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
   const { signOut, user, role } = useAuth();
+  const router = useRouter();
+
+  const fetchEvents = async () => {
+    try {
+      const response = await api.get('/events');
+      setEvents(response.data);
+    } catch (error) {
+      console.error('Error al cargar eventos:', error);
+      toast.error('Error al cargar la lista de eventos');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        const response = await api.get('/events');
-        setEvents(response.data);
-      } catch (error) {
-        console.error('Error al cargar eventos:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchEvents();
   }, []);
 
@@ -138,53 +145,179 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-fadeIn">
-              {events.map((event, index) => (
-                <Link
-                  key={event.id}
-                  href={role === 'ADMIN' ? `/events/${event.id}` : `/events/${event.id}/check-in`}
-                  className={`group premium-card p-6 flex flex-col stagger-${Math.min(index + 1, 5)} animate-slideUp`}
-                >
-                  <div className="flex items-start justify-between mb-5">
-                    <div className="bg-gradient-to-br from-orange-500/10 to-orange-600/5 p-3 rounded-xl group-hover:from-orange-500/20 group-hover:to-orange-600/10 transition-all duration-500">
-                      <Calendar className="w-5 h-5 text-orange-500" />
+              {events.map((event, index) => {
+                const isDraft = event.status === 'DRAFT';
+                const cardContent = (
+                  <>
+                    <div className="flex items-start justify-between mb-5">
+                      <div className="bg-gradient-to-br from-orange-500/10 to-orange-600/5 p-3 rounded-xl group-hover:from-orange-500/20 group-hover:to-orange-600/10 transition-all duration-500">
+                        <Calendar className="w-5 h-5 text-orange-500" />
+                      </div>
+                      {getStatusBadge(event.status)}
                     </div>
-                    {getStatusBadge(event.status)}
-                  </div>
-                  
-                  <h2 className="text-lg font-bold text-white mb-3 line-clamp-1 group-hover:text-orange-400 transition-colors duration-300">
-                    {event.name}
-                  </h2>
-                  
-                  <div className="space-y-2.5 mt-auto">
-                    <div className="flex items-center text-zinc-500 text-xs font-medium">
-                      <Calendar className="w-3.5 h-3.5 mr-2 text-zinc-600" />
-                      {new Date(event.eventDate || event.date).toLocaleDateString('es-CL', {
-                        weekday: 'short',
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric'
-                      })}
+                    
+                    <h2 className="text-lg font-bold text-white mb-3 line-clamp-1 group-hover:text-orange-400 transition-colors duration-300">
+                      {event.name}
+                    </h2>
+                    
+                    <div className="space-y-2.5 mt-auto">
+                      <div className="flex items-center text-zinc-500 text-xs font-medium">
+                        <Calendar className="w-3.5 h-3.5 mr-2 text-zinc-600" />
+                        {new Date(event.eventDate || event.date).toLocaleDateString('es-CL', {
+                          weekday: 'short',
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        })}
+                      </div>
+                      <div className="flex items-center text-zinc-500 text-xs font-medium">
+                        <MapPin className="w-3.5 h-3.5 mr-2 text-zinc-600" />
+                        {event.location}
+                      </div>
                     </div>
-                    <div className="flex items-center text-zinc-500 text-xs font-medium">
-                      <MapPin className="w-3.5 h-3.5 mr-2 text-zinc-600" />
-                      {event.location}
-                    </div>
-                  </div>
 
-                  {/* Bottom gradient line */}
-                  <div className="mt-5 pt-4 border-t border-[var(--border)] flex items-center justify-between">
-                    <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">
-                      {role === 'ADMIN' ? 'Administrar' : 'Operación'}
-                    </span>
-                    <span className="text-xs text-zinc-400 group-hover:text-orange-500 transition-colors flex items-center gap-1.5 font-semibold">
-                      {role === 'ADMIN' ? 'Ver detalles' : 'Ir a Check-in'} <ArrowRight className="w-3 h-3" />
-                    </span>
-                  </div>
-                </Link>
-              ))}
+                    <div className="mt-5 pt-4 border-t border-[var(--border)] flex items-center justify-between">
+                      <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">
+                        {isDraft ? 'Configuración' : (role === 'ADMIN' ? 'Administrar' : 'Operación')}
+                      </span>
+                      <span className="text-xs text-zinc-400 group-hover:text-orange-500 transition-colors flex items-center gap-1.5 font-semibold">
+                        {isDraft ? 'Opciones de Borrador' : (role === 'ADMIN' ? 'Ver detalles' : 'Ir a Check-in')} <ArrowRight className="w-3 h-3" />
+                      </span>
+                    </div>
+                  </>
+                );
+
+                if (isDraft && role === 'ADMIN') {
+                  return (
+                    <button
+                      key={event.id}
+                      onClick={() => setSelectedDraft(event)}
+                      className={`group premium-card p-6 flex flex-col text-left w-full stagger-${Math.min(index + 1, 5)} animate-slideUp`}
+                    >
+                      {cardContent}
+                    </button>
+                  );
+                }
+
+                return (
+                  <Link
+                    key={event.id}
+                    href={role === 'ADMIN' ? `/events/${event.id}` : `/events/${event.id}/check-in`}
+                    className={`group premium-card p-6 flex flex-col stagger-${Math.min(index + 1, 5)} animate-slideUp`}
+                  >
+                    {cardContent}
+                  </Link>
+                );
+              })}
             </div>
           )}
         </main>
+
+        {/* Draft Control Modal */}
+        {selectedDraft && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div 
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fadeIn" 
+              onClick={() => !isPublishing && !isDeleting && setSelectedDraft(null)} 
+            />
+            
+            <div className="relative premium-card w-full max-w-lg overflow-hidden animate-scaleIn border-zinc-800 shadow-2xl">
+              {/* Modal Header */}
+              <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50">
+                <div>
+                  <h3 className="text-xl font-bold text-white leading-tight">{selectedDraft.name}</h3>
+                  <p className="text-xs text-zinc-500 mt-1 uppercase tracking-widest font-bold">Control de Borrador</p>
+                </div>
+                <button 
+                  onClick={() => setSelectedDraft(null)}
+                  disabled={isPublishing || isDeleting}
+                  className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-500 hover:text-white transition-colors disabled:opacity-30"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Options Grid */}
+              <div className="p-6 grid grid-cols-1 gap-4">
+                {/* Option A: Resume */}
+                <button
+                  onClick={() => {
+                    setSelectedDraft(null);
+                    router.push(`/events/${selectedDraft.id}`);
+                  }}
+                  className="group flex items-center gap-4 p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 hover:bg-indigo-500/10 hover:border-indigo-500/20 transition-all text-left"
+                >
+                  <div className="p-3 bg-indigo-500/20 rounded-xl text-indigo-400 group-hover:scale-110 transition-transform">
+                    <Settings className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-indigo-100 italic">Resumir Configuración</p>
+                    <p className="text-xs text-indigo-300/60 mt-0.5">Ve al dashboard del evento para añadir detalles.</p>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-indigo-500/40 group-hover:translate-x-1 transition-transform" />
+                </button>
+
+                {/* Option B: Publish */}
+                <button
+                  onClick={async () => {
+                    setIsPublishing(true);
+                    try {
+                      await api.patch(`/events/${selectedDraft.id}`, { status: 'PUBLISHED' });
+                      toast.success('¡Evento publicado exitosamente!');
+                      setSelectedDraft(null);
+                      fetchEvents();
+                    } catch (error) {
+                      toast.error('Error al publicar el evento');
+                    } finally {
+                      setIsPublishing(false);
+                    }
+                  }}
+                  disabled={isPublishing || isDeleting}
+                  className="group flex items-center gap-4 p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 hover:bg-emerald-500/10 hover:border-emerald-500/20 transition-all text-left disabled:opacity-50"
+                >
+                  <div className="p-3 bg-emerald-500/20 rounded-xl text-emerald-400 group-hover:scale-110 transition-transform">
+                    {isPublishing ? <Spinner /> : <Globe className="w-6 h-6" />}
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-emerald-100 italic">Publicar de Inmediato</p>
+                    <p className="text-xs text-emerald-300/60 mt-0.5">Haz que el evento sea visible para operaciones.</p>
+                  </div>
+                  <Upload className="w-5 h-5 text-emerald-500/40 group-hover:-translate-y-1 transition-transform" />
+                </button>
+
+                {/* Option C: Delete */}
+                <button
+                  onClick={async () => {
+                    if (confirm('¿Estás seguro de que deseas eliminar este borrador? Esta acción no se puede deshacer.')) {
+                      setIsDeleting(true);
+                      try {
+                        await api.delete(`/events/${selectedDraft.id}`);
+                        toast.success('Borrador eliminado correctamente');
+                        setSelectedDraft(null);
+                        fetchEvents();
+                      } catch (error) {
+                        toast.error('Error al eliminar el borrador');
+                      } finally {
+                        setIsDeleting(false);
+                      }
+                    }
+                  }}
+                  disabled={isPublishing || isDeleting}
+                  className="group flex items-center gap-4 p-4 rounded-2xl bg-red-500/5 border border-red-500/10 hover:bg-red-500/10 hover:border-red-500/20 transition-all text-left disabled:opacity-50"
+                >
+                  <div className="p-3 bg-red-500/20 rounded-xl text-red-400 group-hover:scale-110 transition-transform">
+                    {isDeleting ? <Spinner /> : <Trash2 className="w-6 h-6" />}
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-red-100 italic">Eliminar Borrador</p>
+                    <p className="text-xs text-red-300/60 mt-0.5">Borra permanentemente este evento.</p>
+                  </div>
+                  <AlertOctagon className="w-5 h-5 text-red-500/40 group-hover:animate-pulse" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </ProtectedRoute>
   );

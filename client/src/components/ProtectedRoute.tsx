@@ -10,6 +10,7 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
   const router = useRouter();
 
   useEffect(() => {
+    // Only check for user after loading is false
     if (!loading && !user) {
       router.push('/login');
     }

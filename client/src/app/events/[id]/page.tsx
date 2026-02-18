@@ -25,6 +25,7 @@ export default function EventDetail({ params }: { params: Promise<{ id: string }
   const [uploading, setUploading] = useState(false);
   const [sending, setSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [notFound, setNotFound] = useState(false);
   const { role } = useAuth();
 
   const fetchAll = useCallback(async () => {
@@ -37,9 +38,13 @@ export default function EventDetail({ params }: { params: Promise<{ id: string }
       setEvent(eventRes.data);
       setAttendees(attendeesRes.data);
       setStats(statsRes.data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading:', error);
-      toast.error('Error al cargar datos del evento');
+      if (error.response?.status === 404) {
+        setNotFound(true);
+      } else {
+        toast.error('Error al cargar datos del evento');
+      }
     } finally {
       setLoading(false);
     }
@@ -116,8 +121,23 @@ export default function EventDetail({ params }: { params: Promise<{ id: string }
     }
   };
 
-  if (loading) return <ProtectedRoute><Spinner /></ProtectedRoute>;
-  if (!event) return <ProtectedRoute><p className="text-center p-10 text-zinc-500">Evento no encontrado</p></ProtectedRoute>;
+  if (loading) return <ProtectedRoute><div className="min-h-screen bg-[var(--background)] flex items-center justify-center"><Spinner /></div></ProtectedRoute>;
+  if (notFound || !event) return (
+    <ProtectedRoute>
+      <div className="min-h-screen bg-[var(--background)] text-white flex flex-col items-center justify-center p-10">
+        <div className="premium-card p-12 text-center max-w-md animate-scaleIn">
+          <div className="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <Calendar className="w-7 h-7 text-red-500" />
+          </div>
+          <h1 className="text-2xl font-bold mb-2">Evento no encontrado</h1>
+          <p className="text-zinc-500 mb-8">El evento que buscas no existe o ha sido eliminado.</p>
+          <Link href="/dashboard" className="inline-flex items-center gap-2 px-6 py-2.5 bg-[var(--surface-3)] text-white font-bold rounded-xl hover:bg-[var(--surface-4)] transition-all">
+            <ArrowLeft className="w-4 h-4" /> Volver al Dashboard
+          </Link>
+        </div>
+      </div>
+    </ProtectedRoute>
+  );
 
   const checkedInPercent = stats ? Math.round((stats.checkedIn / (stats.total || 1)) * 100) : 0;
 
