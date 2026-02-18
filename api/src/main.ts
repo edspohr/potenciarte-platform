@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ExpressAdapter } from '@nestjs/platform-express';
+import { ValidationPipe, InternalServerErrorException } from '@nestjs/common';
 import * as express from 'express';
 import * as admin from 'firebase-admin';
 import { ServiceAccount } from 'firebase-admin';
@@ -42,8 +43,26 @@ function initializeFirebase() {
 async function bootstrap() {
   initializeFirebase();
   const app = await NestFactory.create(AppModule);
-  app.enableCors();
-  await app.listen(process.env.PORT ?? 3000);
+
+  // Enable validation
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
+
+  // Enable CORS
+  app.enableCors({
+    origin: true, // Allow all origins for debugging
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+  });
+
+  const port = process.env.PORT ?? 3000;
+  await app.listen(port);
+  console.log(`Server running on port ${port}`);
 }
 
 // Check if running in Cloud Functions (heuristics or specific env var could be used)

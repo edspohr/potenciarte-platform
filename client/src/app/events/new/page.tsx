@@ -29,8 +29,13 @@ export default function NewEvent() {
     setLoading(true);
 
     try {
+      // Remove empty strings for optional fields
+      const cleanData = Object.fromEntries(
+        Object.entries(formData).filter(([_, v]) => v !== '')
+      );
+
       const payload = {
-        ...formData,
+        ...cleanData,
         eventDate: new Date(formData.eventDate).toISOString(),
       };
       

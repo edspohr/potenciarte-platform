@@ -71,14 +71,22 @@ export class EventsService {
   }
 
   async create(createEventDto: CreateEventDto) {
-    const eventData = {
-      ...createEventDto,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      status: 'DRAFT',
-    };
-    const res = await this.db.collection('events').add(eventData);
-    return { id: res.id, ...eventData };
+    try {
+      this.logger.log('Creating new event...');
+      const eventData = {
+        ...createEventDto,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'DRAFT',
+      };
+      
+      const res = await this.db.collection('events').add(eventData);
+      this.logger.log(`Event created with ID: ${res.id}`);
+      return { id: res.id, ...eventData };
+    } catch (error) {
+      this.logger.error('Error creating event in Firestore:', error);
+      throw error;
+    }
   }
 
   async findAll() {
