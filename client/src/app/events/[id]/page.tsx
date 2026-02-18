@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, useCallback, use } from 'react';
 import api from '../../../lib/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { useAuth } from '@/context/AuthContext';
 import {
   ArrowLeft, Users, CheckCircle, Upload, Send, QrCode,
-  Calendar, MapPin, FileText, Award, Download, Eye, UserCheck
+  Calendar, MapPin, FileText, Award, Eye, UserCheck
 } from 'lucide-react';
 import Spinner from '@/components/Spinner';
 import { Event, Attendee } from '@/types';
@@ -23,8 +24,10 @@ export default function EventDetail({ params }: { params: Promise<{ id: string }
   const [activeTab, setActiveTab] = useState<'attendees' | 'diplomas'>('attendees');
   const [uploading, setUploading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const { role } = useAuth();
 
-  const fetchAll = async () => {
+  const fetchAll = useCallback(async () => {
     try {
       const [eventRes, attendeesRes, statsRes] = await Promise.all([
         api.get(`/events/${eventId}`),
@@ -40,9 +43,15 @@ export default function EventDetail({ params }: { params: Promise<{ id: string }
     } finally {
       setLoading(false);
     }
-  };
+  }, [eventId]);
 
-  useEffect(() => { fetchAll(); }, [eventId]);
+  useEffect(() => { fetchAll(); }, [eventId, fetchAll]);
+
+  const filteredAttendees = attendees.filter(a => 
+    a.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    a.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (a.rut && a.rut.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
 
   const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -132,43 +141,56 @@ export default function EventDetail({ params }: { params: Promise<{ id: string }
               <div className="flex gap-2">
                 <Link
                   href={`/events/${eventId}/check-in`}
-                  className="flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all shadow-md"
+                  className="flex items-center gap-2 px-6 py-2.5 text-sm font-bold bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg hover:shadow-[var(--shadow-glow-primary)]"
                 >
-                  <QrCode className="w-3.5 h-3.5" /> Check-in
+                  <QrCode className="w-4 h-4" /> Realizar Check-in
                 </Link>
-                <button
-                  onClick={handleSendInvitations}
-                  className="flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-[var(--surface-3)] text-zinc-300 border border-[var(--border)] rounded-xl hover:bg-[var(--surface-4)] hover:text-white transition-all"
-                >
-                  <Send className="w-3.5 h-3.5" /> Invitaciones
-                </button>
+                {role === 'ADMIN' && (
+                  <button
+                    onClick={handleSendInvitations}
+                    className="flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-[var(--surface-3)] text-zinc-300 border border-[var(--border)] rounded-xl hover:bg-[var(--surface-4)] hover:text-white transition-all underline-offset-4"
+                  >
+                    <Send className="w-3.5 h-3.5" /> Invitaciones
+                  </button>
+                )}
               </div>
             </div>
           </div>
         </div>
 
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+          {/* Info Banner for Staff */}
+          {role === 'STAFF' && (
+            <div className="mb-8 p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl flex items-center gap-4 animate-fadeIn">
+              <div className="p-2 bg-blue-500/20 rounded-lg">
+                <Users className="w-5 h-5 text-blue-400" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-blue-100">Vista de Staff</p>
+                <p className="text-xs text-blue-300/80">Tienes acceso a las estadísticas y al registro de asistencia.</p>
+              </div>
+            </div>
+          )}
+
           {/* Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 animate-fadeIn">
             <div className="premium-card p-5 flex items-center gap-4 hover:translate-y-0">
               <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500/15 to-blue-600/5"><Users className="w-5 h-5 text-blue-400" /></div>
-              <div><p className="text-2xl font-bold">{stats?.total || 0}</p><p className="text-[11px] text-zinc-500 font-medium uppercase tracking-wider">Total</p></div>
+              <div><p className="text-2xl font-bold">{stats?.total || 0}</p><p className="text-[11px] text-zinc-500 font-medium uppercase tracking-wider">Total Registrados</p></div>
             </div>
-            <div className="premium-card p-5 flex items-center gap-4 hover:translate-y-0">
+            <div className="premium-card p-5 flex items-center gap-4 hover:translate-y-0 border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.05)]">
               <div className="p-3 rounded-xl bg-gradient-to-br from-emerald-500/15 to-emerald-600/5"><UserCheck className="w-5 h-5 text-emerald-400" /></div>
-              <div><p className="text-2xl font-bold">{stats?.checkedIn || 0}</p><p className="text-[11px] text-zinc-500 font-medium uppercase tracking-wider">Check-in</p></div>
+              <div><p className="text-2xl font-bold">{stats?.checkedIn || 0}</p><p className="text-[11px] text-zinc-500 font-medium uppercase tracking-wider">Check-in Realizado</p></div>
             </div>
             <div className="premium-card p-5 flex items-center gap-4 hover:translate-y-0">
               <div className="p-3 rounded-xl bg-gradient-to-br from-orange-500/15 to-orange-600/5">
                 <div className="relative w-5 h-5 flex items-center justify-center">
-                  <span className="text-xs font-black text-orange-400">{checkedInPercent}%</span>
+                  <span className="text-[10px] font-black text-orange-400">{checkedInPercent}%</span>
                 </div>
               </div>
               <div>
-                <div className="flex items-center gap-3">
-                  <p className="text-2xl font-bold">{stats?.pending || 0}</p>
-                </div>
-                <p className="text-[11px] text-zinc-500 font-medium uppercase tracking-wider">Pendientes</p>
+                <p className="text-2xl font-bold">{stats?.pending || 0}</p>
+                <p className="text-[11px] text-zinc-500 font-medium uppercase tracking-wider">Pendientes de Ingreso</p>
               </div>
             </div>
           </div>
@@ -192,27 +214,32 @@ export default function EventDetail({ params }: { params: Promise<{ id: string }
           {/* Tab Content */}
           {activeTab === 'attendees' && (
             <div className="animate-fadeIn">
-              {/* Upload */}
-              <div className="premium-card p-5 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:translate-y-0">
-                <div className="flex items-center gap-3">
-                  <div className="bg-gradient-to-br from-violet-500/15 to-violet-600/5 p-2.5 rounded-xl"><Upload className="w-4 h-4 text-violet-400" /></div>
-                  <div>
-                    <p className="text-sm font-bold">Cargar Asistentes</p>
-                    <p className="text-[11px] text-zinc-500">Subir archivo CSV con columnas: nombre, email, rut</p>
-                  </div>
+              {/* Toolbar */}
+              <div className="flex flex-col md:flex-row gap-4 mb-6">
+                <div className="flex-1 relative">
+                  <input
+                    type="text"
+                    placeholder="Buscar asistente por nombre, email o RUT..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 bg-[var(--surface-1)] border border-[var(--border)] rounded-xl text-sm text-white focus:border-orange-500/50 transition-all outline-none"
+                  />
+                  <CheckCircle className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                 </div>
-                <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-[var(--surface-3)] border border-[var(--border)] text-zinc-300 rounded-xl hover:bg-[var(--surface-4)] hover:text-white transition-all">
-                  <Upload className="w-3.5 h-3.5" />
-                  {uploading ? 'Cargando...' : 'Seleccionar CSV'}
-                  <input type="file" accept=".csv" onChange={handleCsvUpload} className="hidden" disabled={uploading} />
-                </label>
+                {role === 'ADMIN' && (
+                  <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 text-xs font-bold bg-violet-600/10 border border-violet-600/20 text-violet-400 rounded-xl hover:bg-violet-600/20 transition-all">
+                    <Upload className="w-4 h-4" />
+                    {uploading ? 'Cargando...' : 'Importar CSV'}
+                    <input type="file" accept=".csv" onChange={handleCsvUpload} className="hidden" disabled={uploading} />
+                  </label>
+                )}
               </div>
 
               {/* Table */}
               {attendees.length === 0 ? (
                 <div className="premium-card p-12 text-center hover:translate-y-0">
                   <Users className="w-8 h-8 text-zinc-700 mx-auto mb-3" />
-                  <p className="text-sm text-zinc-500">No hay asistentes registrados. Sube un archivo CSV para comenzar.</p>
+                  <p className="text-sm text-zinc-500">No hay asistentes registrados.</p>
                 </div>
               ) : (
                 <div className="premium-card overflow-hidden hover:translate-y-0">
@@ -227,18 +254,18 @@ export default function EventDetail({ params }: { params: Promise<{ id: string }
                         </tr>
                       </thead>
                       <tbody>
-                        {attendees.map((a) => (
-                          <tr key={a.id} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-2)] transition-colors">
+                        {filteredAttendees.map((a) => (
+                          <tr key={a.id} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-2)/50] transition-colors">
                             <td className="px-5 py-3.5 font-medium text-white whitespace-nowrap">{a.name}</td>
                             <td className="px-5 py-3.5 text-zinc-400 hidden md:table-cell">{a.email}</td>
                             <td className="px-5 py-3.5 text-zinc-500 font-mono text-xs hidden lg:table-cell">{a.rut || '—'}</td>
                             <td className="px-5 py-3.5 text-center">
                               {a.checkedIn ? (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                                   <CheckCircle className="w-3 h-3" /> Validado
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-zinc-800 text-zinc-500 border border-zinc-700">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-zinc-800 text-zinc-500 border border-zinc-700">
                                   Pendiente
                                 </span>
                               )}
@@ -255,58 +282,68 @@ export default function EventDetail({ params }: { params: Promise<{ id: string }
 
           {activeTab === 'diplomas' && (
             <div className="animate-fadeIn space-y-5">
-              {/* Upload template */}
-              <div className="premium-card p-5 hover:translate-y-0">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-gradient-to-br from-amber-500/15 to-amber-600/5 p-2.5 rounded-xl"><FileText className="w-4 h-4 text-amber-400" /></div>
-                    <div>
-                      <p className="text-sm font-bold">Plantilla de Diploma</p>
-                      <p className="text-[11px] text-zinc-500">
-                        {event.diplomaTemplateUrl ? 'Plantilla cargada ✓' : 'Sube un archivo PDF como plantilla'}
-                      </p>
+              {/* Only for Admins */}
+              {role === 'ADMIN' ? (
+                <>
+                  {/* Upload template */}
+                  <div className="premium-card p-5 hover:translate-y-0 border-l-4 border-amber-500/50">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-gradient-to-br from-amber-500/15 to-amber-600/5 p-2.5 rounded-xl"><FileText className="w-4 h-4 text-amber-400" /></div>
+                        <div>
+                          <p className="text-sm font-bold">Plantilla de Diploma</p>
+                          <p className="text-[11px] text-zinc-500">
+                            {event.diplomaTemplateUrl ? 'Configurada correctamente ✓' : 'Sube un archivo PDF para personalizar los certificados.'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 flex-wrap">
+                        <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 text-xs font-bold bg-[var(--surface-3)] border border-[var(--border)] text-zinc-300 rounded-xl hover:bg-orange-500/10 hover:border-orange-500/20 hover:text-orange-400 transition-all">
+                          <Upload className="w-3.5 h-3.5" />
+                          {event.diplomaTemplateUrl ? 'Reemplazar PDF' : 'Subir Plantilla'}
+                          <input type="file" accept=".pdf" onChange={handleTemplateUpload} className="hidden" />
+                        </label>
+                        {event.diplomaTemplateUrl && (
+                          <a
+                            href={`${process.env.NEXT_PUBLIC_API_URL}/events/${eventId}/diplomas/preview`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold bg-zinc-800 text-zinc-400 rounded-xl hover:bg-zinc-700 hover:text-white transition-all"
+                          >
+                            <Eye className="w-3.5 h-3.5" /> Vista Previa
+                          </a>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <div className="flex gap-2 flex-wrap">
-                    <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-[var(--surface-3)] border border-[var(--border)] text-zinc-300 rounded-xl hover:bg-[var(--surface-4)] hover:text-white transition-all">
-                      <Upload className="w-3.5 h-3.5" />
-                      {event.diplomaTemplateUrl ? 'Reemplazar' : 'Subir PDF'}
-                      <input type="file" accept=".pdf" onChange={handleTemplateUpload} className="hidden" />
-                    </label>
-                    {event.diplomaTemplateUrl && (
-                      <a
-                        href={`${process.env.NEXT_PUBLIC_API_URL}/events/${eventId}/diplomas/preview`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-[var(--surface-3)] border border-[var(--border)] text-zinc-300 rounded-xl hover:bg-[var(--surface-4)] hover:text-white transition-all"
-                      >
-                        <Eye className="w-3.5 h-3.5" /> Preview
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </div>
 
-              {/* Send batch */}
-              <div className="premium-card p-5 hover:translate-y-0">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-gradient-to-br from-emerald-500/15 to-emerald-600/5 p-2.5 rounded-xl"><Award className="w-4 h-4 text-emerald-400" /></div>
-                    <div>
-                      <p className="text-sm font-bold">Enviar Diplomas</p>
-                      <p className="text-[11px] text-zinc-500">Se enviarán a todos los asistentes con check-in ({stats?.checkedIn || 0})</p>
+                  {/* Send batch */}
+                  <div className="premium-card p-5 hover:translate-y-0 border-l-4 border-emerald-500/50">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-gradient-to-br from-emerald-500/15 to-emerald-600/5 p-2.5 rounded-xl"><Award className="w-4 h-4 text-emerald-400" /></div>
+                        <div>
+                          <p className="text-sm font-bold">Envío Masivo de Diplomas</p>
+                          <p className="text-[11px] text-zinc-500">Se enviarán a los asistentes validados ({stats?.checkedIn || 0})</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleSendDiplomas}
+                        disabled={sending || !event.diplomaTemplateUrl || stats?.checkedIn === 0}
+                        className="flex items-center gap-2 px-6 py-2.5 text-xs font-bold bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl hover:from-emerald-600 hover:to-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-lg"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        {sending ? 'Enviando...' : 'Enviar Certificados'}
+                      </button>
                     </div>
                   </div>
-                  <button
-                    onClick={handleSendDiplomas}
-                    disabled={sending || !event.diplomaTemplateUrl}
-                    className="flex items-center gap-2 px-5 py-2.5 text-xs font-semibold bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl hover:from-emerald-600 hover:to-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                    {sending ? 'Enviando...' : 'Enviar Diplomas'}
-                  </button>
+                </>
+              ) : (
+                <div className="premium-card p-12 text-center hover:translate-y-0 border-dashed border-zinc-800 bg-transparent shadow-none">
+                  <Award className="w-10 h-10 text-zinc-800 mx-auto mb-4" />
+                  <p className="text-sm text-zinc-500 max-w-xs mx-auto">La gestión de diplomas y envíos masivos está reservada para el perfil de Administrador.</p>
                 </div>
-              </div>
+              )}
             </div>
           )}
         </div>

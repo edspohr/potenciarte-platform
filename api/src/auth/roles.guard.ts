@@ -47,7 +47,7 @@ export class RolesGuard implements CanActivate {
       }
 
       const userData = userDoc.data();
-      const userRole = userData?.role;
+      const userRole = userData?.role as string | undefined;
 
       if (!userRole) {
         this.logger.warn(`User ${user.uid} has no role assigned`);
@@ -59,7 +59,7 @@ export class RolesGuard implements CanActivate {
 
       if (!hasRole) {
         this.logger.warn(
-          `User ${user.uid} with role ${userRole} attempted to access endpoint requiring roles: ${requiredRoles.join(', ')}`,
+          `ACCESS DENIED: User ${user.uid} with role ${userRole} attempted to access endpoint requiring: ${requiredRoles.join(', ')}`,
         );
         throw new ForbiddenException(
           `Insufficient permissions. Required roles: ${requiredRoles.join(', ')}`,
@@ -67,7 +67,7 @@ export class RolesGuard implements CanActivate {
       }
 
       this.logger.log(
-        `User ${user.uid} with role ${userRole} authorized for endpoint`,
+        `ACCESS GRANTED: User ${user.uid} with role ${userRole} authorized for roles: ${requiredRoles.join(', ')}`,
       );
       return true;
     } catch (error) {

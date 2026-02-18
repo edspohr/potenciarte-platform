@@ -1,15 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../lib/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { ArrowLeft, Calendar, MapPin, FileText, Image as ImageIcon, Sparkles } from 'lucide-react';
 import Link from 'next/link';
+import Spinner from '@/components/Spinner';
 
 export default function NewEvent() {
   const router = useRouter();
+  const { role, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -19,6 +22,13 @@ export default function NewEvent() {
     headerImage: '',
     signatureImage: '',
   });
+
+  useEffect(() => {
+    if (!authLoading && role && role !== 'ADMIN') {
+      toast.error('No tienes permisos para crear eventos');
+      router.push('/dashboard');
+    }
+  }, [role, authLoading, router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -31,7 +41,7 @@ export default function NewEvent() {
     try {
       // Remove empty strings for optional fields
       const cleanData = Object.fromEntries(
-        Object.entries(formData).filter(([_, v]) => v !== '')
+        Object.entries(formData).filter(([, v]) => v !== '')
       );
 
       const payload = {
@@ -49,6 +59,8 @@ export default function NewEvent() {
       setLoading(false);
     }
   };
+
+  if (authLoading) return <Spinner />;
 
   return (
     <ProtectedRoute>

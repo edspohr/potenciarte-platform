@@ -127,19 +127,21 @@ export default function Dashboard() {
               <p className="text-sm text-zinc-500 mb-8 max-w-sm mx-auto">
                 Comienza creando tu primer evento para gestionar asistentes y generar diplomas.
               </p>
-              <Link
-                href="/events/new"
-                className="inline-flex items-center text-orange-500 hover:text-orange-400 font-semibold text-sm gap-1.5 transition-colors"
-              >
-                Crear Evento <ArrowRight className="w-4 h-4" />
-              </Link>
+              {role === 'ADMIN' && (
+                <Link
+                  href="/events/new"
+                  className="inline-flex items-center text-orange-500 hover:text-orange-400 font-semibold text-sm gap-1.5 transition-colors"
+                >
+                  Crear Evento <ArrowRight className="w-4 h-4" />
+                </Link>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-fadeIn">
               {events.map((event, index) => (
                 <Link
                   key={event.id}
-                  href={`/events/${event.id}`}
+                  href={role === 'ADMIN' ? `/events/${event.id}` : `/events/${event.id}/check-in`}
                   className={`group premium-card p-6 flex flex-col stagger-${Math.min(index + 1, 5)} animate-slideUp`}
                 >
                   <div className="flex items-start justify-between mb-5">
@@ -170,9 +172,12 @@ export default function Dashboard() {
                   </div>
 
                   {/* Bottom gradient line */}
-                  <div className="mt-5 pt-4 border-t border-[var(--border)] flex items-center justify-end">
-                    <span className="text-xs text-zinc-600 group-hover:text-orange-500 transition-colors flex items-center gap-1">
-                      Ver detalles <ArrowRight className="w-3 h-3" />
+                  <div className="mt-5 pt-4 border-t border-[var(--border)] flex items-center justify-between">
+                    <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">
+                      {role === 'ADMIN' ? 'Administrar' : 'Operación'}
+                    </span>
+                    <span className="text-xs text-zinc-400 group-hover:text-orange-500 transition-colors flex items-center gap-1.5 font-semibold">
+                      {role === 'ADMIN' ? 'Ver detalles' : 'Ir a Check-in'} <ArrowRight className="w-3 h-3" />
                     </span>
                   </div>
                 </Link>
