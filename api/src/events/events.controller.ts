@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { EventsService } from './events.service';
 import { CreateEventDto } from './dto/create-event.dto';
@@ -14,6 +15,7 @@ import { UpdateEventDto } from './dto/update-event.dto';
 import { FirebaseAuthGuard } from '../auth/firebase-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import type { RequestWithUser } from '../auth/auth.types';
 
 @Controller('events')
 @UseGuards(FirebaseAuthGuard, RolesGuard)
@@ -28,14 +30,14 @@ export class EventsController {
 
   @Get()
   @Roles('ADMIN', 'STAFF')
-  findAll() {
-    return this.eventsService.findAll();
+  findAll(@Request() req: RequestWithUser) {
+    return this.eventsService.findAll(req.user);
   }
 
   @Get(':id')
   @Roles('ADMIN', 'STAFF')
-  findOne(@Param('id') id: string) {
-    return this.eventsService.findOne(id);
+  findOne(@Param('id') id: string, @Request() req: RequestWithUser) {
+    return this.eventsService.findOne(id, req.user);
   }
 
   @Patch(':id')

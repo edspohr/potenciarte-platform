@@ -8,12 +8,14 @@ import {
   UseGuards,
   Body,
   Query,
+  Request,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AttendeesService } from './attendees.service';
 import { FirebaseAuthGuard } from '../auth/firebase-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import type { RequestWithUser } from '../auth/auth.types';
 
 @Controller('events/:eventId/attendees')
 @UseGuards(FirebaseAuthGuard, RolesGuard)
@@ -35,8 +37,9 @@ export class AttendeesController {
   async checkIn(
     @Param('eventId') eventId: string,
     @Body('attendeeId') attendeeId: string,
+    @Request() req: RequestWithUser,
   ) {
-    return this.attendeesService.checkIn(eventId, attendeeId);
+    return this.attendeesService.checkIn(eventId, attendeeId, req.user);
   }
 
   @Get('stats')

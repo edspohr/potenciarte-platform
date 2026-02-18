@@ -9,6 +9,8 @@ export interface Event {
   status?: string;
   createdAt?: string;
   updatedAt?: string;
+  staffIds?: string[];
+  diplomaEnabled?: boolean;
   _count?: {
     attendees: number;
   };

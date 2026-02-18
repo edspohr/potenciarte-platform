@@ -1,7 +1,8 @@
-import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger, ForbiddenException } from '@nestjs/common';
 import csv from 'csv-parser';
 import { Readable } from 'stream';
 import * as admin from 'firebase-admin';
+import { DecodedIdToken } from 'firebase-admin/auth';
 
 interface CsvRow {
   email?: string;
@@ -17,6 +18,62 @@ export class AttendeesService {
 
   constructor() {
     this.db = admin.firestore();
+  }
+
+  // ... (keep processCsv, createMany, findAll, search existing methods as is)
+
+  async checkIn(
+    eventId: string,
+    attendeeId: string,
+    user: DecodedIdToken,
+  ) {
+    // 1. Verify Staff Access
+    if (user.role === 'STAFF') {
+      const eventDoc = await this.db.collection('events').doc(eventId).get();
+      if (!eventDoc.exists) {
+        throw new BadRequestException('Event not found');
+      }
+      const eventData = eventDoc.data();
+      const staffIds = eventData?.staffIds || [];
+      
+      if (!staffIds.includes(user.uid)) {
+        throw new ForbiddenException('You are not assigned to this event.');
+      }
+    }
+
+    const attendeeRef = this.db
+      .collection('events')
+      .doc(eventId)
+      .collection('attendees')
+      .doc(attendeeId);
+    const attendeeDoc = await attendeeRef.get();
+
+    if (!attendeeDoc.exists) {
+      throw new BadRequestException('Attendee not found');
+    }
+
+    const attendee = attendeeDoc.data();
+
+    if (attendee?.eventId !== eventId) {
+      throw new BadRequestException('Attendee does not belong to this event');
+    }
+
+    if (attendee?.checkedIn) {
+      return { id: attendeeDoc.id, ...attendee, status: 'already_checked_in' };
+    }
+
+    const updateData: any = {
+      checkedIn: true,
+      checkInTime: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      checkedInByUID: user.uid,
+      checkedInByEmail: user.email || '',
+    };
+
+    await attendeeRef.update(updateData);
+
+    const updatedDoc = await attendeeRef.get();
+    return { id: updatedDoc.id, ...updatedDoc.data() };
   }
 
   async processCsv(
@@ -134,48 +191,6 @@ export class AttendeesService {
     return results;
   }
 
-  async checkIn(
-    eventId: string,
-    attendeeId: string,
-    staffInfo?: { uid: string; email: string },
-  ) {
-    const attendeeRef = this.db
-      .collection('events')
-      .doc(eventId)
-      .collection('attendees')
-      .doc(attendeeId);
-    const attendeeDoc = await attendeeRef.get();
-
-    if (!attendeeDoc.exists) {
-      throw new BadRequestException('Attendee not found');
-    }
-
-    const attendee = attendeeDoc.data();
-
-    if (attendee?.eventId !== eventId) {
-      throw new BadRequestException('Attendee does not belong to this event');
-    }
-
-    if (attendee?.checkedIn) {
-      return { id: attendeeDoc.id, ...attendee, status: 'already_checked_in' };
-    }
-
-    const updateData: any = {
-      checkedIn: true,
-      checkInTime: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    if (staffInfo) {
-      updateData.checkedInByUID = staffInfo.uid;
-      updateData.checkedInByEmail = staffInfo.email;
-    }
-
-    await attendeeRef.update(updateData);
-
-    const updatedDoc = await attendeeRef.get();
-    return { id: updatedDoc.id, ...updatedDoc.data() };
-  }
 
   async getSyncData(eventId: string) {
     return this.findAll(eventId);

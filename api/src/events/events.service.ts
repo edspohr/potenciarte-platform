@@ -1,8 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ForbiddenException } from '@nestjs/common';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { EmailService } from '../common/email.service';
 import * as admin from 'firebase-admin';
+import { DecodedIdToken } from 'firebase-admin/auth';
 
 @Injectable()
 export class EventsService {
@@ -11,6 +12,68 @@ export class EventsService {
 
   constructor(private emailService: EmailService) {
     this.db = admin.firestore();
+  }
+
+  // ... (keep sendInvitations, removeUndefined, create, serializeFirestoreData existing methods as is)
+
+  async findAll(user: DecodedIdToken) {
+    this.logger.log(`Fetching events for user ${user.email} (${user.role})`);
+    
+    let query: admin.firestore.Query = this.db.collection('events');
+
+    // Filter for STAFF
+    if (user.role === 'STAFF') {
+       query = query.where('staffIds', 'array-contains', user.uid);
+    }
+
+    const snapshot = await query.orderBy('eventDate', 'asc').get();
+    
+    this.logger.log(`Found ${snapshot.docs.length} events`);
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...(this.serializeFirestoreData(doc.data()) as Record<string, unknown>),
+    }));
+  }
+
+  async findOne(id: string, user?: DecodedIdToken) {
+    const doc = await this.db.collection('events').doc(id).get();
+    if (!doc.exists) return null;
+
+    const eventData = doc.data() as any;
+
+    // Security Check for STAFF
+    if (user && user.role === 'STAFF') {
+      const staffIds = eventData.staffIds || [];
+      if (!staffIds.includes(user.uid)) {
+        throw new ForbiddenException('You are not assigned to this event.');
+      }
+    }
+
+    // Aggregations for Stepper and Stats
+    const attendeesSnapshot = await this.db
+      .collection('events')
+      .doc(id)
+      .collection('attendees')
+      .get();
+
+    const attendeesCount = attendeesSnapshot.size;
+    const hasSentTickets = attendeesSnapshot.docs.some(
+      (d) => d.data().ticketSent === true,
+    );
+
+    return {
+      id: doc.id,
+      ...(this.serializeFirestoreData(eventData) as Record<string, unknown>),
+      _count: {
+        attendees: attendeesCount,
+      },
+      _progress: {
+        hasAttendees: attendeesCount > 0,
+        hasTemplate: !!eventData?.diplomaTemplatePath,
+        hasSentTickets: hasSentTickets,
+        isPublished: eventData?.status === 'PUBLISHED',
+      },
+    };
   }
 
   async sendInvitations(eventId: string) {
@@ -132,51 +195,6 @@ export class EventsService {
     return data;
   }
 
-  async findAll() {
-    console.log('Fetching all events...');
-    const snapshot = await this.db
-      .collection('events')
-      .orderBy('eventDate', 'asc')
-      .get();
-    console.log(`Found ${snapshot.docs.length} events`);
-    return snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...(this.serializeFirestoreData(doc.data()) as Record<string, unknown>),
-    }));
-  }
-
-  async findOne(id: string) {
-    const doc = await this.db.collection('events').doc(id).get();
-    if (!doc.exists) return null;
-
-    const eventData = doc.data() as any;
-
-    // Aggregations for Stepper and Stats
-    const attendeesSnapshot = await this.db
-      .collection('events')
-      .doc(id)
-      .collection('attendees')
-      .get();
-
-    const attendeesCount = attendeesSnapshot.size;
-    const hasSentTickets = attendeesSnapshot.docs.some(
-      (d) => d.data().ticketSent === true,
-    );
-
-    return {
-      id: doc.id,
-      ...(this.serializeFirestoreData(eventData) as Record<string, unknown>),
-      _count: {
-        attendees: attendeesCount,
-      },
-      _progress: {
-        hasAttendees: attendeesCount > 0,
-        hasTemplate: !!eventData?.diplomaTemplatePath,
-        hasSentTickets: hasSentTickets,
-        isPublished: eventData?.status === 'PUBLISHED',
-      },
-    };
-  }
 
   async update(id: string, updateEventDto: UpdateEventDto) {
     const docRef = this.db.collection('events').doc(id);

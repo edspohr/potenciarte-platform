@@ -5,6 +5,7 @@ import * as admin from 'firebase-admin';
 export enum Role {
   ADMIN = 'ADMIN',
   STAFF = 'STAFF',
+  USER = 'USER',
 }
 
 export interface User {
@@ -12,6 +13,7 @@ export interface User {
   email: string;
   fullName: string;
   role: Role;
+  isBlocked?: boolean;
 }
 
 @Injectable()
@@ -28,21 +30,36 @@ export class UsersService {
     const doc = await userRef.get();
 
     if (doc.exists) {
-      return doc.data() as User;
+      const userData = doc.data() as User;
+      return userData;
     }
 
     // Check if this is the first user to make them admin
     const usersSnapshot = await this.db.collection('users').get();
-    const role = usersSnapshot.empty ? Role.ADMIN : Role.STAFF;
+    const role = usersSnapshot.empty ? Role.ADMIN : Role.USER;
 
     const newUser: User = {
       id: uid,
       email: email || '',
       fullName: (name as string) || 'Unknown',
       role,
+      isBlocked: false,
     };
 
     await userRef.set(newUser);
     return newUser;
+  }
+
+  async findAll(): Promise<User[]> {
+    const snapshot = await this.db.collection('users').get();
+    return snapshot.docs.map((doc) => doc.data() as User);
+  }
+
+  async updateRole(uid: string, role: Role): Promise<void> {
+    await this.db.collection('users').doc(uid).update({ role });
+  }
+
+  async toggleBlock(uid: string, isBlocked: boolean): Promise<void> {
+    await this.db.collection('users').doc(uid).update({ isBlocked });
   }
 }

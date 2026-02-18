@@ -21,4 +21,6 @@ export class CreateEventDto {
 
   @IsDateString()
   eventDate: string;
+  staffIds?: string[];
+  diplomaEnabled?: boolean;
 }

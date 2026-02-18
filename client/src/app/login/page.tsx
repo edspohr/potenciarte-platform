@@ -5,6 +5,14 @@ import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { ArrowRight, Lock, Mail, User, Eye, EyeOff, Sparkles } from 'lucide-react';
 import Image from 'next/image';
+import { auth } from '@/lib/firebase';
+import {
+  signInWithEmailAndPassword,
+  linkWithCredential,
+  GoogleAuthProvider,
+  AuthCredential,
+} from 'firebase/auth';
+import { useRouter } from 'next/navigation';
 
 // Google Icon SVG
 const GoogleIcon = () => (
@@ -38,11 +46,38 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  
+  // Account Linking State
+  const [linkingCredential, setLinkingCredential] = useState<AuthCredential | null>(null);
+  const [linkingEmail, setLinkingEmail] = useState<string | null>(null);
+
   const { signIn, signUp, signInWithGoogle } = useAuth();
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
+    if (linkingCredential && linkingEmail) {
+      // Handle Account Linking
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, linkingEmail, password);
+        await linkWithCredential(userCredential.user, linkingCredential);
+        toast.success('Cuenta vinculada exitosamente');
+        router.push('/dashboard');
+      } catch (err: any) {
+        console.error('Link Error:', err);
+        if (err.code === 'auth/wrong-password') {
+          toast.error('Contraseña incorrecta');
+        } else {
+          toast.error('Error al vincular cuenta');
+        }
+      } finally {
+         setLoading(false);
+      }
+      return;
+    }
+
     try {
       if (tab === 'login') {
         await signIn(email, password);
@@ -76,8 +111,21 @@ export default function LoginPage() {
     try {
       await signInWithGoogle();
       toast.success('¡Bienvenido!');
-    } catch {
-      toast.error('Error al iniciar sesión con Google.');
+    } catch (err: any) {
+       console.error('Google Sign In Error:', err);
+       if (err.code === 'auth/account-exists-with-different-credential') {
+          const credential = GoogleAuthProvider.credentialFromError(err);
+          const email = err.customData?.email;
+          if (credential && email) {
+             setLinkingCredential(credential);
+             setLinkingEmail(email);
+             setEmail(email); // Pre-fill email
+             setTab('login'); // Force login tab
+             toast.info(`Ya existe una cuenta con ${email}. Ingresa tu contraseña para vincularla.`);
+          }
+       } else {
+         toast.error('Error al iniciar sesión con Google.');
+       }
     } finally {
       setGoogleLoading(false);
     }
@@ -85,7 +133,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-[var(--background)] flex text-white relative overflow-hidden">
-      {/* ── Left panel (branding) ── */}
+      {/* ... (keep branding section) */}
       <div className="hidden lg:flex lg:w-1/2 relative flex-col items-center justify-center p-16 overflow-hidden">
         {/* Ambient blobs */}
         <div className="absolute inset-0 pointer-events-none">
@@ -144,8 +192,8 @@ export default function LoginPage() {
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 relative">
         {/* Mobile background blobs */}
         <div className="absolute inset-0 pointer-events-none lg:hidden">
-          <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-orange-600/8 rounded-full blur-[120px]" />
-          <div className="absolute bottom-[-10%] right-[-5%] w-[40%] h-[40%] bg-amber-600/5 rounded-full blur-[100px]" />
+            <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-orange-600/8 rounded-full blur-[120px]" />
+            <div className="absolute bottom-[-10%] right-[-5%] w-[40%] h-[40%] bg-amber-600/5 rounded-full blur-[100px]" />
         </div>
         <div className="absolute inset-0 noise pointer-events-none" />
 
@@ -158,26 +206,39 @@ export default function LoginPage() {
 
           {/* Card */}
           <div className="glass rounded-3xl p-8 shadow-2xl border border-white/[0.08]">
+             {/* Linking Message */}
+             {linkingEmail && (
+                 <div className="mb-6 p-4 rounded-xl bg-orange-500/10 border border-orange-500/20 text-center animate-slideDown">
+                    <p className="text-sm text-orange-200">
+                       La cuenta <strong className="text-white">{linkingEmail}</strong> ya existe.
+                       <br/>
+                       Ingresa tu contraseña para vincularla con Google.
+                    </p>
+                 </div>
+             )}
+
             {/* Tabs */}
-            <div className="flex bg-white/[0.04] rounded-2xl p-1 mb-7 gap-1">
-              {(['login', 'register'] as Tab[]).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setTab(t)}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${
-                    tab === t
-                      ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg'
-                      : 'text-zinc-500 hover:text-zinc-300'
-                  }`}
-                >
-                  {t === 'login' ? 'Iniciar sesión' : 'Registrarse'}
-                </button>
-              ))}
-            </div>
+            {!linkingEmail && (
+                <div className="flex bg-white/[0.04] rounded-2xl p-1 mb-7 gap-1">
+                  {(['login', 'register'] as Tab[]).map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setTab(t)}
+                      className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${
+                        tab === t
+                          ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg'
+                          : 'text-zinc-500 hover:text-zinc-300'
+                      }`}
+                    >
+                      {t === 'login' ? 'Iniciar sesión' : 'Registrarse'}
+                    </button>
+                  ))}
+                </div>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Name field (register only) */}
-              {tab === 'register' && (
+              {tab === 'register' && !linkingEmail && (
                 <div className="animate-slideDown">
                   <label htmlFor="name" className="block text-[11px] font-semibold text-zinc-500 uppercase tracking-widest mb-2">
                     Nombre completo
@@ -212,7 +273,8 @@ export default function LoginPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="nombre@empresa.com"
-                    className="block w-full pl-11 pr-4 py-3.5 border border-[var(--border)] rounded-xl bg-[var(--surface-1)] text-white placeholder-zinc-600 text-sm transition-all"
+                    disabled={!!linkingEmail}
+                    className="block w-full pl-11 pr-4 py-3.5 border border-[var(--border)] rounded-xl bg-[var(--surface-1)] text-white placeholder-zinc-600 text-sm transition-all disabled:opacity-50"
                   />
                   <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-600" />
                 </div>
@@ -243,7 +305,7 @@ export default function LoginPage() {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-                {tab === 'register' && (
+                {tab === 'register' && !linkingEmail && (
                   <p className="mt-1.5 text-[11px] text-zinc-600">Mínimo 6 caracteres</p>
                 )}
               </div>
@@ -258,14 +320,30 @@ export default function LoginPage() {
                   <div className="h-4 w-4 rounded-full border-2 border-transparent border-t-white animate-spin" />
                 ) : (
                   <>
-                    {tab === 'login' ? 'Ingresar' : 'Crear cuenta'}
+                    {linkingEmail ? 'Vincular y Entrar' : (tab === 'login' ? 'Ingresar' : 'Crear cuenta')}
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
               </button>
+              
+               {linkingEmail && (
+                   <button
+                       type="button"
+                       onClick={() => {
+                           setLinkingEmail(null);
+                           setLinkingCredential(null);
+                           setEmail('');
+                           setPassword('');
+                       }}
+                       className="w-full mt-2 text-xs text-zinc-500 hover:text-zinc-300 underline"
+                   >
+                       Cancelar vinculación
+                   </button>
+               )}
             </form>
 
             {/* Divider */}
+            {!linkingEmail && (
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-[var(--border)]" />
@@ -276,8 +354,10 @@ export default function LoginPage() {
                 </span>
               </div>
             </div>
+            )}
 
             {/* Google */}
+            {!linkingEmail && (
             <button
               type="button"
               onClick={handleGoogle}
@@ -293,9 +373,10 @@ export default function LoginPage() {
                 </>
               )}
             </button>
+            )}
 
             {/* Staff note */}
-            {tab === 'register' && (
+            {tab === 'register' && !linkingEmail && (
               <div className="mt-5 flex items-start gap-2.5 p-3.5 rounded-xl bg-blue-500/5 border border-blue-500/10">
                 <Sparkles className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" />
                 <p className="text-[11px] text-zinc-500 leading-relaxed">
