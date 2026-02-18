@@ -133,10 +133,12 @@ export class EventsService {
   }
 
   async findAll() {
+    console.log('Fetching all events...');
     const snapshot = await this.db
       .collection('events')
       .orderBy('eventDate', 'asc')
       .get();
+    console.log(`Found ${snapshot.docs.length} events`);
     return snapshot.docs.map((doc) => ({
       id: doc.id,
       ...(this.serializeFirestoreData(doc.data()) as Record<string, unknown>),

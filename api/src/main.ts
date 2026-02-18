@@ -59,9 +59,14 @@ async function bootstrap() {
 
   // Enable CORS
   app.enableCors({
-    origin: true, // Allow all origins for debugging
+    origin: [
+      'https://potenciarte-platform-v1.web.app',
+      'https://potenciarte-platform-v1.firebaseapp.com',
+      'http://localhost:3000',
+    ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   });
 
   const port = process.env.PORT ?? 3000;
