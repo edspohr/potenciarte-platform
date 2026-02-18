@@ -72,8 +72,8 @@ export class EventsService {
 
   // Helper to remove undefined values (Firestore doesn't accept them)
   private removeUndefined<T extends Record<string, any>>(obj: T): Partial<T> {
-    const cleaned: any = {};
-    Object.keys(obj).forEach((key) => {
+    const cleaned: Partial<T> = {};
+    (Object.keys(obj) as Array<keyof T>).forEach((key) => {
       if (obj[key] !== undefined) {
         cleaned[key] = obj[key];
       }
