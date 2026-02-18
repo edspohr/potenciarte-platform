@@ -5,5 +5,6 @@ import { AttendeesController } from './attendees.controller';
 @Module({
   controllers: [AttendeesController],
   providers: [AttendeesService],
+  exports: [AttendeesService],
 })
 export class AttendeesModule {}

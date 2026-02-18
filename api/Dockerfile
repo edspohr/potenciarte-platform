@@ -30,7 +30,7 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/firebase-service-account.json ./firebase-service-account.json
 
 # Expose port
-EXPOSE 3000
+EXPOSE 8080
 
 # Start command
 CMD ["npm", "run", "start:prod"]
