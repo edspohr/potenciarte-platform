@@ -11,10 +11,13 @@ api.interceptors.request.use(async (config) => {
   if (user) {
     try {
       const token = await user.getIdToken();
+      console.log(`🔑 Attaching token for user: ${user.email}`); // Debug Log
       config.headers.Authorization = `Bearer ${token}`;
     } catch (error) {
       console.error('Error getting auth token:', error);
     }
+  } else {
+    console.warn('⚠️ No user found in Auth module, request sent without token');
   }
   
   return config;

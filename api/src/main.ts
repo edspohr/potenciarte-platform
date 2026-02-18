@@ -9,15 +9,21 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 // Initialize Firebase Admin (Shared)
+// Initialize Firebase Admin (Shared)
 function initializeFirebase() {
   if (!admin.apps.length) {
     let credential;
+    // Try to find the service account file
+    const serviceAccountPath = path.join(
+      __dirname,
+      '..',
+      'firebase-service-account.json',
+    );
+    
+    // Explicitly define the Project ID (Fallback to a hardcoded string if env is missing to be safe)
+    const projectId = process.env.FIREBASE_PROJECT_ID || 'potenciarte-platform-v1';
+
     try {
-      const serviceAccountPath = path.join(
-        __dirname,
-        '..',
-        'firebase-service-account.json',
-      );
       if (fs.existsSync(serviceAccountPath)) {
         const serviceAccount = JSON.parse(
           fs.readFileSync(serviceAccountPath, 'utf8'),
@@ -35,7 +41,12 @@ function initializeFirebase() {
       credential = admin.credential.applicationDefault();
     }
 
-    admin.initializeApp({ credential });
+    // Initialize with explicit projectId
+    admin.initializeApp({ 
+      credential,
+      projectId: projectId 
+    });
+    console.log(`🔥 Firebase Admin Initialized for project: ${projectId}`);
   }
 }
 
