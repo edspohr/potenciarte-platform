@@ -43,6 +43,7 @@ function initializeFirebase() {
 async function bootstrap() {
   initializeFirebase();
   const app = await NestFactory.create(AppModule);
+  app.setGlobalPrefix('api');
 
   // Enable validation
   app.useGlobalPipes(
@@ -87,6 +88,7 @@ export const createNestServer = async (expressInstance: express.Express) => {
     AppModule,
     new ExpressAdapter(expressInstance),
   );
+  app.setGlobalPrefix('api');
   app.enableCors({
     origin: [
       'https://potenciarte-platform-v1.web.app',
