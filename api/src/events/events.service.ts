@@ -100,12 +100,46 @@ export class EventsService {
     }
   }
 
+  // Helper to serialize Firestore data (convert Timestamps to ISO strings)
+  private serializeFirestoreData(data: unknown): unknown {
+    if (!data) return data;
+
+    // Handle arrays
+    if (Array.isArray(data)) {
+      return data.map((item: unknown) => this.serializeFirestoreData(item));
+    }
+
+    // Handle Firestore Timestamp objects
+    if (data instanceof admin.firestore.Timestamp) {
+      return data.toDate().toISOString();
+    }
+
+    // Handle plain objects
+    if (typeof data === 'object' && data !== null) {
+      const serialized: Record<string, unknown> = {};
+      for (const key in data) {
+        if (Object.prototype.hasOwnProperty.call(data, key)) {
+          serialized[key] = this.serializeFirestoreData(
+            (data as Record<string, unknown>)[key],
+          );
+        }
+      }
+      return serialized;
+    }
+
+    // Return primitive values as-is
+    return data;
+  }
+
   async findAll() {
     const snapshot = await this.db
       .collection('events')
       .orderBy('eventDate', 'asc')
       .get();
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...(this.serializeFirestoreData(doc.data()) as Record<string, unknown>),
+    }));
   }
 
   async findOne(id: string) {
@@ -127,7 +161,7 @@ export class EventsService {
 
     return {
       id: doc.id,
-      ...data,
+      ...(this.serializeFirestoreData(data) as Record<string, unknown>),
       _count: {
         attendees: attendeesCount,
       },

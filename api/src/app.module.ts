@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersService } from './users/users.service';
+import { UsersController } from './users/users.controller';
 import { EventsModule } from './events/events.module';
 import { AttendeesModule } from './attendees/attendees.module';
 import { EmailModule } from './common/email.module';
@@ -17,7 +18,7 @@ import { FirestoreModule } from './firestore/firestore.module';
     EmailModule,
     DiplomasModule,
   ],
-  controllers: [AppController, AuthController],
+  controllers: [AppController, AuthController, UsersController],
   providers: [AppService, UsersService],
 })
 export class AppModule {}

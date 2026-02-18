@@ -21,7 +21,7 @@ interface Event {
 export default function Dashboard() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
-  const { signOut, user } = useAuth();
+  const { signOut, user, role } = useAuth();
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -73,6 +73,15 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="flex items-center space-x-5">
+                {role && (
+                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                    role === 'ADMIN' 
+                      ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' 
+                      : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                  }`}>
+                    {role === 'ADMIN' ? 'Admin' : 'Staff'}
+                  </span>
+                )}
                 <span className="text-xs text-zinc-500 hidden md:block">
                   {user?.email}
                 </span>
@@ -95,13 +104,15 @@ export default function Dashboard() {
               <h1 className="text-3xl font-bold text-white mb-1">Mis Eventos</h1>
               <p className="text-sm text-zinc-500">Gestiona y monitorea todos tus eventos.</p>
             </div>
-            <Link
-              href="/events/new"
-              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white text-sm font-semibold rounded-xl hover:from-orange-600 hover:to-orange-700 transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-[var(--shadow-glow-primary)]"
-            >
-              <Plus className="w-4 h-4" />
-              Crear Evento
-            </Link>
+            {role === 'ADMIN' && (
+              <Link
+                href="/events/new"
+                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white text-sm font-semibold rounded-xl hover:from-orange-600 hover:to-orange-700 transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-[var(--shadow-glow-primary)]"
+              >
+                <Plus className="w-4 h-4" />
+                Crear Evento
+              </Link>
+            )}
           </div>
 
           {/* Content */}
