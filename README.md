@@ -11,11 +11,11 @@ The platform allows for a **Monorepo** structure separating the Backend API and 
 ### **Backend (API)**
 
 - **Framework**: [NestJS](https://nestjs.com/) (Node.js) - Modular and scalable architecture.
-- **Database**: [PostgreSQL](https://www.postgresql.org/) - Relational data (Events, Attendees).
-- **ORM**: [Prisma](https://www.prisma.io/) - Type-safe database access and migrations.
-- **Authentication**: Firebase Admin SDK (Verifies ID Tokens from client).
+- **Database**: [Firestore](https://firebase.google.com/docs/firestore) - NoSQL document database.
+- **Authentication**: Firebase Admin SDK (**Role-Based Access via Custom Claims** to avoid database lookups).
+- **Search Optimization**: Native Firestore prefix searching for lightning-fast queries.
 - **Email**: SendGrid (`@sendgrid/mail`) - Transactional emails with QR codes.
-- **Utils**: `qrcode` (Generation), `csv-parser` (Bulk Import).
+- **Utils**: `qrcode` (Generation), `csv-parser` (**Stream-based** processing for low memory footprint during Bulk Imports).
 
 ### **Frontend (Client)**
 
@@ -53,22 +53,7 @@ The "Check-in Mode" is a fully functional **Progressive Web App (PWA)** designed
 
 ## 🚀 Getting Started
 
-### 1. Database Setup
-
-Start the local PostgreSQL instance using Docker:
-
-```bash
-docker compose up -d
-```
-
-Initialize the database schema:
-
-```bash
-cd api
-npx prisma db push
-```
-
-### 2. Environment Configuration
+### 1. Environment Configuration
 
 #### **Backend (`api/.env`)**
 
@@ -101,7 +86,7 @@ NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="123456..."
 NEXT_PUBLIC_FIREBASE_APP_ID="1:123456..."
 ```
 
-### 3. Running the Application
+### 2. Running the Application
 
 **Start Backend:**
 

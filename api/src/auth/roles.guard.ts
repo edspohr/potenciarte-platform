@@ -6,20 +6,16 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import * as admin from 'firebase-admin';
 import { ROLES_KEY } from './roles.decorator';
 import { RequestWithUser } from './auth.types';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
   private readonly logger = new Logger(RolesGuard.name);
-  private db: admin.firestore.Firestore;
 
-  constructor(private reflector: Reflector) {
-    this.db = admin.firestore();
-  }
+  constructor(private reflector: Reflector) {}
 
-  async canActivate(context: ExecutionContext): Promise<boolean> {
+  canActivate(context: ExecutionContext): boolean {
     const requiredRoles = this.reflector.getAllAndOverride<string[]>(
       ROLES_KEY,
       [context.getHandler(), context.getClass()],
@@ -38,19 +34,10 @@ export class RolesGuard implements CanActivate {
     }
 
     try {
-      // Fetch user document from Firestore to get role
-      const userDoc = await this.db.collection('users').doc(user.uid).get();
-
-      if (!userDoc.exists) {
-        this.logger.warn(`User document not found for UID: ${user.uid}`);
-        throw new ForbiddenException('User profile not found');
-      }
-
-      const userData = userDoc.data();
-      const userRole = userData?.role as string | undefined;
+      const userRole = user.role as string | undefined;
 
       if (!userRole) {
-        this.logger.warn(`User ${user.uid} has no role assigned`);
+        this.logger.warn(`User ${user.uid} has no role claim assigned`);
         throw new ForbiddenException('User has no role assigned');
       }
 

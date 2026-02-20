@@ -72,12 +72,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         } catch (error) {
           console.error('Error fetching user role:', error);
           setRole('STAFF');
+        } finally {
+          setLoading(false);
         }
       } else {
         setRole(null);
+        setLoading(false);
       }
-
-      setLoading(false);
     });
     return () => unsubscribe();
   }, []);

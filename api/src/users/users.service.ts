@@ -31,6 +31,10 @@ export class UsersService {
 
     if (doc.exists) {
       const userData = doc.data() as User;
+      // Ensure custom claims are set if they were missing or mismatched
+      if (userToken.role !== userData.role) {
+        await admin.auth().setCustomUserClaims(uid, { role: userData.role });
+      }
       return userData;
     }
 
@@ -47,6 +51,7 @@ export class UsersService {
     };
 
     await userRef.set(newUser);
+    await admin.auth().setCustomUserClaims(uid, { role });
     return newUser;
   }
 
@@ -57,6 +62,7 @@ export class UsersService {
 
   async updateRole(uid: string, role: Role): Promise<void> {
     await this.db.collection('users').doc(uid).update({ role });
+    await admin.auth().setCustomUserClaims(uid, { role });
   }
 
   async toggleBlock(uid: string, isBlocked: boolean): Promise<void> {

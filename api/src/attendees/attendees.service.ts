@@ -81,7 +81,7 @@ export class AttendeesService {
     fileBuffer: Buffer,
   ): Promise<{ count: number; message: string }> {
     const attendees: any[] = [];
-    const stream = Readable.from(fileBuffer.toString());
+    const stream = Readable.from(fileBuffer); // Pass buffer directly without toString()
 
     return new Promise((resolve, reject) => {
       stream
@@ -170,25 +170,22 @@ export class AttendeesService {
   }
 
   async search(eventId: string, query: string) {
-    // Firestore doesn't support full-text search natively,
-    // so we fetch all and filter server-side (fine for event-scale data)
+    // Implement prefix search on the 'name' field using Firestore directly
+    const endQuery = query + '\uf8ff';
+
     const snapshot = await this.db
       .collection('events')
       .doc(eventId)
       .collection('attendees')
+      .where('name', '>=', query)
+      .where('name', '<=', endQuery)
+      .limit(15)
       .get();
 
-    const q = query.toLowerCase();
-    const results = snapshot.docs
-      .map((doc) => ({ id: doc.id, ...doc.data() }))
-      .filter((a: any) =>
-        (a.name as string)?.toLowerCase().includes(q) ||
-        (a.email as string)?.toLowerCase().includes(q) ||
-        (a.rut as string)?.toLowerCase().includes(q),
-      )
-      .slice(0, 15);
-
-    return results;
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
   }
 
 
