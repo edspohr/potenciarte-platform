@@ -9,7 +9,6 @@ import { Plus, Calendar, MapPin, LogOut, ArrowRight, LayoutDashboard, Settings, 
 import { useAuth } from '@/context/AuthContext';
 import Spinner from '@/components/Spinner';
 import { toast } from 'sonner';
-import { useRouter } from 'next/navigation';
 
 interface Event {
   id: string;
@@ -33,7 +32,6 @@ export default function Dashboard() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const { signOut, user, role } = useAuth();
-  const router = useRouter();
 
   const fetchEvents = async () => {
     try {
@@ -312,12 +310,9 @@ export default function Dashboard() {
                 {/* Modal Options Grid */}
                 <div className="grid grid-cols-1 gap-4">
                   {/* Option A: Resume */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedDraft(null);
-                      router.push(`/events/${selectedDraft.id}`);
-                    }}
+                  <Link
+                    href={`/events/${selectedDraft.id}`}
+                    onClick={() => setSelectedDraft(null)}
                     className="group flex items-center gap-4 p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 hover:bg-indigo-500/10 hover:border-indigo-500/20 transition-all text-left"
                   >
                     <div className="p-3 bg-indigo-500/20 rounded-xl text-indigo-400 group-hover:scale-110 transition-transform">
@@ -328,7 +323,7 @@ export default function Dashboard() {
                       <p className="text-xs text-indigo-300/60 mt-0.5">Sube asistentes o configura la plantilla.</p>
                     </div>
                     <ArrowRight className="w-5 h-5 text-indigo-500/40 group-hover:translate-x-1 transition-transform" />
-                  </button>
+                  </Link>
 
                   {/* Option B: Publish */}
                   <button
