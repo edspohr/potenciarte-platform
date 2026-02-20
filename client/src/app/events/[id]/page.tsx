@@ -260,6 +260,7 @@ export default function EventDetail({ params }: { params: Promise<{ id: string }
                    const isCompleted = currentStep > step.id;
                    return (
                      <button
+                       type="button"
                        key={step.id}
                        onClick={() => setCurrentStep(step.id)}
                        className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
@@ -333,7 +334,7 @@ export default function EventDetail({ params }: { params: Promise<{ id: string }
                  </div>
               </div>
               <div className="mt-8 flex justify-end">
-                <button onClick={handleUpdateEvent} className="px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl transition-all">Guardar Cambios</button>
+                <button type="button" onClick={handleUpdateEvent} className="px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl transition-all">Guardar Cambios</button>
               </div>
             </div>
           )}
@@ -405,6 +406,7 @@ export default function EventDetail({ params }: { params: Promise<{ id: string }
                  Se enviará un correo electrónico a todos los asistentes ({attendees.length}) con su código QR único para el ingreso.
                </p>
                <button 
+                 type="button"
                  onClick={handleSendInvitations}
                  className="inline-flex items-center gap-2 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-900/20"
                >
@@ -421,7 +423,7 @@ export default function EventDetail({ params }: { params: Promise<{ id: string }
                   <Shield className="w-5 h-5 text-orange-500" /> 
                   Asignar Staff al Evento
                 </h2>
-                <button onClick={saveStaffAssignment} className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-xl transition-all">
+                <button type="button" onClick={saveStaffAssignment} className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-xl transition-all">
                   Guardar Asignación
                 </button>
               </div>
@@ -440,7 +442,7 @@ export default function EventDetail({ params }: { params: Promise<{ id: string }
                             <p className="font-medium text-sm">{u.fullName || 'Sin nombre'}</p>
                             <p className="text-xs text-gray-500">{u.email}</p>
                          </div>
-                         <button onClick={() => toggleStaffAssignment(u.id)} className="p-2 bg-[var(--surface-2)] hover:bg-emerald-500/20 hover:text-emerald-500 rounded-lg transition-colors">
+                         <button type="button" onClick={() => toggleStaffAssignment(u.id)} className="p-2 bg-[var(--surface-2)] hover:bg-emerald-500/20 hover:text-emerald-500 rounded-lg transition-colors">
                            <ChevronRight className="w-4 h-4" />
                          </button>
                        </div>
@@ -461,7 +463,7 @@ export default function EventDetail({ params }: { params: Promise<{ id: string }
                             <p className="font-medium text-sm text-emerald-100">{u.fullName || 'Sin nombre'}</p>
                             <p className="text-xs text-emerald-400/70">{u.email}</p>
                          </div>
-                         <button onClick={() => toggleStaffAssignment(u.id)} className="p-2 hover:bg-red-500/20 hover:text-red-400 rounded-lg transition-colors text-emerald-600">
+                         <button type="button" onClick={() => toggleStaffAssignment(u.id)} className="p-2 hover:bg-red-500/20 hover:text-red-400 rounded-lg transition-colors text-emerald-600">
                            <X className="w-4 h-4" />
                          </button>
                        </div>
@@ -533,6 +535,7 @@ export default function EventDetail({ params }: { params: Promise<{ id: string }
                
                <div className="flex flex-col gap-4 max-w-xs mx-auto">
                  <button 
+                   type="button"
                    onClick={handleSendDiplomas}
                    disabled={!event.diplomaTemplateUrl || stats?.checkedIn === 0 || sending}
                    className="flex items-center justify-center gap-2 px-8 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all shadow-lg shadow-emerald-900/20"
@@ -570,7 +573,7 @@ export default function EventDetail({ params }: { params: Promise<{ id: string }
                  <BarChart className="w-12 h-12 text-gray-600 mx-auto mb-4" />
                  <h3 className="text-lg font-bold mb-2">Exportar Datos Finales</h3>
                  <p className="text-gray-400 mb-6">Descarga un archivo CSV con el detalle de asistencia, hora de ingreso y estado de envío de diplomas.</p>
-                 <button className="px-6 py-2.5 border border-[var(--border)] hover:bg-[var(--surface-2)] text-white font-bold rounded-xl transition-all">
+                 <button type="button" className="px-6 py-2.5 border border-[var(--border)] hover:bg-[var(--surface-2)] text-white font-bold rounded-xl transition-all">
                    Descargar Reporte CSV (Próximamente)
                  </button>
                </div>

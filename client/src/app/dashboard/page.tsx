@@ -234,6 +234,7 @@ export default function Dashboard() {
                       <div className="flex items-center gap-2">
                         {isDraft && role === 'ADMIN' ? (
                           <button
+                            type="button"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
@@ -295,6 +296,7 @@ export default function Dashboard() {
                   <p className="text-xs text-zinc-500 mt-1 uppercase tracking-widest font-bold">Estado del Lanzamiento</p>
                 </div>
                 <button 
+                  type="button"
                   onClick={() => setSelectedDraft(null)}
                   disabled={isPublishing || isDeleting}
                   className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-500 hover:text-white transition-colors disabled:opacity-30"
@@ -311,6 +313,7 @@ export default function Dashboard() {
                 <div className="grid grid-cols-1 gap-4">
                   {/* Option A: Resume */}
                   <button
+                    type="button"
                     onClick={() => {
                       setSelectedDraft(null);
                       router.push(`/events/${selectedDraft.id}`);
@@ -329,6 +332,7 @@ export default function Dashboard() {
 
                   {/* Option B: Publish */}
                   <button
+                    type="button"
                     onClick={async () => {
                       setIsPublishing(true);
                       try {
@@ -361,6 +365,7 @@ export default function Dashboard() {
 
                   {/* Option C: Delete */}
                   <button
+                    type="button"
                     onClick={async () => {
                       if (confirm('¿Estás seguro de que deseas eliminar este borrador?')) {
                         setIsDeleting(true);
