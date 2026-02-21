@@ -18,14 +18,11 @@
     "rules": "firestore.rules"
   },
   "hosting": {
-    "source": "client",
     "ignore": [
       "firebase.json",
       "**/node_modules/**"
     ],
-    "frameworksBackend": {
-      "region": "us-central1"
-    },
+    "public": "client/public",
     "rewrites": [
       {
         "source": "/api/**",
@@ -36,7 +33,10 @@
       },
       {
         "source": "**",
-        "destination": "/index.html"
+        "run": {
+          "serviceId": "potenciarte-client",
+          "region": "us-central1"
+        }
       }
     ]
   }

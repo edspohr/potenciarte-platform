@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
     unoptimized: true,
   },
   turbopack: {},
+  output: 'standalone',
 };
 
 export default nextConfig;
