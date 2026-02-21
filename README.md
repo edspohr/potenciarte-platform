@@ -1,12 +1,12 @@
-# Potenciarte Event Platform 🚀
+# Potenciarte Platform 🚀
 
-**A high-performance, offline-first Event Management Platform** built for handling large-scale corporate events. It seamlessly manages the entire event lifecycle: from guest list management and QR-ticket issuance via email to on-site staff check-ins with a robust Progressive Web App (PWA) that works without internet access.
+**A high-performance Event Management Platform** built for handling large-scale corporate events. It seamlessly manages the entire event lifecycle: from guest list management, QR-ticket issuance via email, to real-time on-site staff check-ins using a fully online Cloud infrastructure.
 
 ---
 
 ## 🏗️ Architecture & Tech Stack
 
-The platform allows for a **Monorepo** structure separating the Backend API and Frontend Client.
+The platform uses a **Monorepo** structure separating the Backend API and Frontend Client, both deployed to Google Cloud Run and Firebase.
 
 ### **Backend (API)**
 
@@ -20,62 +20,56 @@ The platform allows for a **Monorepo** structure separating the Backend API and 
 ### **Frontend (Client)**
 
 - **Framework**: [Next.js 16](https://nextjs.org/) (App Router) - Server-Side Rendering & Static Generation.
+- **Deployment Strategy**: **Standalone Docker Container** deployed to Cloud Run, proxied via Firebase Hosting Rewrites.
 - **Styling**: Tailwind CSS v4 & Lucide React Icons.
-- **State/Auth**: React Context + Firebase Client SDK.
+- **State/Auth**: React Context + Firebase Client SDK with Custom Claims Sync.
 - **HTTP Client**: Axios (Configured with Interceptors).
 
-### **Staff App (PWA & Offline Protocol)**
+### **Staff Check-In App**
 
-The "Check-in Mode" is a fully functional **Progressive Web App (PWA)** designed for unstable network conditions.
+The "Check-in Mode" is a fast, responsive Single Page Application view designed for staff at the door.
 
-- **Offline Storage**: [Dexie.js](https://dexie.org/) (IndexedDB Wrapper) - Stores thousands of attendees locally.
-- **Sync Strategy**: **"Offline-First, Background Sync"**.
-  1.  **Initial Load**: Downloads lightweight JSON of all attendees from `GET /events/:id/attendees/sync`.
-  2.  **Scan**: Validates ticket against **local IndexedDB** (Instant feedback < 100ms).
-  3.  **Action**: Marks attendee as `checkedIn` locally.
-  4.  **Sync**:
-      - _Online_: Pushes check-in to API immediately.
-      - _Offline_: Queues the request.
-      - _Reconnection_: Listens for `window.ononline` to flush the queue.
+- **Real-Time Validation**: Staff scans a QR code which makes a swift API call to the Cloud Run backend to validate the ticket against the live Firestore Database.
+- **Instant Sync**: Since it operates 100% online, all staff members instantly see when a ticket has been consumed, preventing duplicate entries across multiple doors.
+- **Manual Search**: Fallback system to search for users by name, email, or RUT in real-time.
+
+_(Note: The previous offline PWA architectural approach was removed to favor this much simpler, highly-available online model)._
 
 ---
 
 ## 🛠️ Prerequisites
 
-- **Node.js**: v18 or higher.
-- **Docker**: Required for running the local PostgreSQL database.
+- **Node.js**: v20 or higher (strict requirement for Next.js 16/Firebase).
 - **Firebase Project**:
   - Authentication enabled (Email/Password provider).
   - Service Account JSON key (for Backend).
-- **SendGrid Account**: API Key for sending emails (Optional for dev, required for prod).
+- **SendGrid Account**: API Key for sending emails.
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Getting Started (Local Development)
 
 ### 1. Environment Configuration
 
 #### **Backend (`api/.env`)**
 
-Create `api/.env` and configure your database and SendGrid keys:
+Create `api/.env` and configure your Firebase and SendGrid keys:
 
 ```ini
-PORT=3001
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/potenciarte?schema=public"
-
-# Email Service (Optional for local dev)
+PORT=8080
+# Email Service
 SENDGRID_API_KEY="SG.your_key_here"
 SENDGRID_FROM_EMAIL="invitaciones@yourdomain.com"
 ```
 
 _Important: Place your `firebase-service-account.json` key file in the `api/` root directory._
 
-#### **Frontend (`client/.env`)**
+#### **Frontend (`client/.env.local`)**
 
-Create `client/.env` (or `.env.local`) with your Firebase Client configuration:
+Create `client/.env.local` with your Firebase Client configuration:
 
 ```ini
-NEXT_PUBLIC_API_URL="http://localhost:3001"
+NEXT_PUBLIC_API_URL="http://localhost:8080"
 
 # Firebase Config
 NEXT_PUBLIC_FIREBASE_API_KEY="AIzaSy..."
@@ -93,7 +87,7 @@ NEXT_PUBLIC_FIREBASE_APP_ID="1:123456..."
 ```bash
 cd api
 npm run start:dev
-# Server running on http://localhost:3001
+# Server running on http://localhost:8080
 ```
 
 **Start Frontend:**
@@ -106,69 +100,20 @@ npm run dev
 
 ---
 
-## ✨ Features Guide
-
-### 📅 Event Dashboard
-
-- **Create Events**: Define Name, Date, Location, and Description.
-- **Stats**: View real-time Total Attendees vs. Checked-in count.
-
-### 👥 Attendee Management
-
-- **Bulk Upload**: Upload a CSV file with columns: `name`, `email`, `rut` (optional).
-- **Search**: Filter attendees by name or email.
-- **Send Tickets**: Trigger email invitations. Each email contains a **Unique QR Code** signed with the Attendee ID.
-
-### 📱 Staff Check-in App (PWA)
-
-Access this mode by navigating to an event and clicking **"Check-in Mode"**.
-
-1.  **Installable**: Add to Home Screen on iOS/Android.
-2.  **QR Scanner**: Uses device camera to scan tickets.
-3.  **Manual Search**: Type name/email to find guests without tickets.
-4.  **Feedback System**:
-    - ✅ **GREEN**: Access Granted.
-    - ⚠️ **YELLOW**: Already Checked In (Duplicate scan).
-    - ❌ **RED**: Invalid Ticket (Not found in this event).
-5.  **Offline Mode**:
-    - Disconnect internet -> Scan validation continues to work.
-    - App shows "Offline" status but functionality remains 100%.
-    - Syncs automatically when connection is restored.
-
----
-
-## 📡 Key API Endpoints
-
-| Method   | Endpoint                                       | Description                                 |
-| :------- | :--------------------------------------------- | :------------------------------------------ |
-| **GET**  | `/events`                                      | List all events                             |
-| **POST** | `/events`                                      | Create new event                            |
-| **GET**  | `/events/:id/attendees`                        | List attendees (Paginated/Search)           |
-| **POST** | `/events/:id/attendees/upload`                 | Upload CSV                                  |
-| **POST** | `/events/:id/attendees/:attendeeId/send-email` | Send QR Ticket                              |
-| **GET**  | `/events/:id/attendees/sync`                   | **Lightweight JSON** for PWA Sync           |
-| **POST** | `/events/:id/attendees/check-in`               | **Idempotent** Check-in (Safe for re-tries) |
-
----
-
 ## 📦 Deployment (Production)
 
-### Database
+This project includes automated deployment scripts for Google Cloud Push deploying.
 
-- Provision a managed PostgreSQL instance (e.g., AWS RDS, Google Cloud SQL, Railway, Supabase).
-- Update `DATABASE_URL` in `api/.env`.
-
-### Backend
-
-- Build: `npm run build`
-- Start: `npm run start:prod`
-- Ensure `firebase-service-account.json` is available in the production environment (or start passing it via ENV variables if refactoring allows).
-
-### Frontend
-
-- Build: `npm run build`
-- Start: `npm run start`
-- **PWA**: The build process automatically generates the Service Worker (`sw.js`) and `workbox` files in `public/`.
+1. Ensure the `gcloud` CLI is authenticated and your Firebase CLI is logged in.
+2. Ensure you have the `.env.production` files complete.
+3. For deploying the Backend API:
+   ```bash
+   ./deploy-infrastructure.sh
+   ```
+4. For deploying the Frontend Client (Next.js Docker + Firebase Hosting Proxies):
+   ```bash
+   ./deploy-client.sh
+   ```
 
 ---
 
@@ -182,4 +127,4 @@ Access this mode by navigating to an event and clicking **"Check-in Mode"**.
 
 ---
 
-**Developed by [Sporh Solutions]**
+**Developed by Ed Spohr**
