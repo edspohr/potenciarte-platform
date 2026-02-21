@@ -67,10 +67,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (firebaseUser) {
         try {
-          const userRole = await fetchOrCreateUserRole(firebaseUser);
-          setRole(userRole);
+          // Read the ID token result which contains the custom claims
+          let idTokenResult = await firebaseUser.getIdTokenResult();
+          let userRole = idTokenResult.claims.role as string | undefined;
+
+          // If the role claim is missing, the backend hasn't synced this user yet.
+          if (!userRole) {
+            const token = await firebaseUser.getIdToken();
+            const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
+            
+            // Trigger backend sync which sets the custom claim based on the Firestore doc
+            await fetch(`${apiBase}/api/auth/login`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+              },
+            });
+
+            // Force refresh the token to obtain the newly attached claims
+            idTokenResult = await firebaseUser.getIdTokenResult(true);
+            userRole = idTokenResult.claims.role as string | undefined;
+          }
+
+          setRole(userRole || 'STAFF');
         } catch (error) {
-          console.error('Error fetching user role:', error);
+          console.error('Error fetching/syncing user role:', error);
           setRole('STAFF');
         } finally {
           setLoading(false);
