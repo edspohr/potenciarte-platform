@@ -57,7 +57,10 @@ export class UsersService {
 
   async findAll(): Promise<User[]> {
     const snapshot = await this.db.collection('users').get();
-    return snapshot.docs.map((doc) => doc.data() as User);
+    return snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return { id: doc.id, ...data } as User;
+    });
   }
 
   async updateRole(uid: string, role: Role): Promise<void> {

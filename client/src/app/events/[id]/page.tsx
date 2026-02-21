@@ -2,33 +2,23 @@
 
 import { useState, useEffect, useCallback, use } from 'react';
 import api from '../../../lib/api';
-import ProtectedRoute from '@/components/ProtectedRoute';
+import MainLayout from '@/components/layout/MainLayout';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 import {
   ArrowLeft, Users, CheckCircle, Upload, Send, QrCode,
-  Calendar, MapPin, FileText, Award, Eye, UserCheck,
+  Calendar, MapPin, FileText, Award,
   Settings, Mail, Shield, BarChart, ChevronRight, X
 } from 'lucide-react';
 import Spinner from '@/components/Spinner';
-import { Event, Attendee, User } from '@/types'; // Update types index to export User
+import { Event, Attendee, User } from '@/types';
 
 interface Stats {
   total: number;
   checkedIn: number;
   pending: number;
 }
-
-const STEPS = [
-  { id: 1, title: 'Configuración', icon: Settings },
-  { id: 2, title: 'Asistentes', icon: Users },
-  { id: 3, title: 'Invitaciones', icon: Mail },
-  { id: 4, title: 'Staff', icon: Shield },
-  { id: 5, title: 'Diplomas', icon: FileText },
-  { id: 6, title: 'Enviar', icon: Send },
-  { id: 7, title: 'Informe', icon: BarChart },
-];
 
 export default function EventDetail({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -39,20 +29,20 @@ export default function EventDetail({ params }: { params: Promise<{ id: string }
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [currentStep, setCurrentStep] = useState(1);
   
-  // Specific Step States
+  // Modals/Drawers States
+  const [activeModal, setActiveModal] = useState<'config' | 'staff' | 'diplomas' | 'attendees' | 'newAttendee' | null>(null);
+  
+  // Specific Data States
   const [staffList, setStaffList] = useState<User[]>([]);
-  const [availableStaff, setAvailableStaff] = useState<User[]>([]);
   const [assignedStaff, setAssignedStaff] = useState<string[]>([]);
-
-  // Common UI States
   const [uploading, setUploading] = useState(false);
   const [sending, setSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [notFound, setNotFound] = useState(false);
+  const [addingAttendee, setAddingAttendee] = useState(false);
+  const [newAttendeeForm, setNewAttendeeForm] = useState({ name: '', email: '', org: '' });
 
-  // Edit Event State
   const [editForm, setEditForm] = useState({
     name: '',
     location: '',
@@ -70,135 +60,48 @@ export default function EventDetail({ params }: { params: Promise<{ id: string }
       setEvent(eventRes.data);
       setAttendees(attendeesRes.data);
       setStats(statsRes.data);
-      
-      // Initialize edit form
+      setAssignedStaff(eventRes.data.staffIds || []);
       setEditForm({
         name: eventRes.data.name,
         location: eventRes.data.location,
         eventDate: new Date(eventRes.data.eventDate).toISOString().slice(0, 16),
         diplomaEnabled: eventRes.data.diplomaEnabled || false,
       });
-
-      // Initialize assigned staff
-      setAssignedStaff(eventRes.data.staffIds || []);
-
-    } catch (error: any) {
-      console.error('Error loading:', error);
-      if (error.response?.status === 404) {
-        setNotFound(true);
-      } else {
-        toast.error('Error al cargar datos del evento');
-      }
+    } catch (error) {
+      const err = error as { response?: { status: number } };
+      if (err.response?.status === 404) setNotFound(true);
+      else toast.error('Error al cargar datos del evento');
     } finally {
       setLoading(false);
     }
   }, [eventId]);
 
-  useEffect(() => { fetchAll(); }, [eventId, fetchAll]);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  // Fetch users when entering Staff step
+  // Modals specific side-effects
   useEffect(() => {
-    if (currentStep === 4 && role === 'ADMIN') {
+    if (activeModal === 'staff' && role === 'ADMIN') {
       const fetchStaff = async () => {
         try {
           const res = await api.get('/users');
-          // Filter only STAFF or ADMIN users
-          const eligibleStaff = res.data.filter((u: any) => u.role === 'STAFF' || u.role === 'ADMIN');
-          setStaffList(eligibleStaff);
-        } catch (error) {
-          console.error('Error fetching users:', error);
-          toast.error('Error al cargar lista de staff');
-        }
+          setStaffList(res.data.filter((u: User) => u.role === 'STAFF' || u.role === 'ADMIN'));
+        } catch { toast.error('Error al cargar staff'); }
       };
       fetchStaff();
     }
-  }, [currentStep, role]);
+  }, [activeModal, role]);
 
   const handleUpdateEvent = async () => {
     try {
       await api.patch(`/events/${eventId}`, {
         ...editForm,
         eventDate: new Date(editForm.eventDate).toISOString(),
-        staffIds: assignedStaff, // Save staff IDs as well
+        staffIds: assignedStaff,
       });
-      toast.success('Evento actualizado correctamente');
+      toast.success('Evento actualizado exitosamente');
       fetchAll();
-    } catch (error) {
-      console.error('Error updating event:', error);
-      toast.error('Error al actualizar evento');
-    }
-  };
-
-  const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploading(true);
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      await api.post(`/events/${eventId}/attendees/upload`, formData);
-      toast.success('Asistentes cargados correctamente');
-      fetchAll();
-    } catch (error) {
-      console.error('Error uploading CSV:', error);
-      toast.error('Error al cargar CSV');
-    } finally {
-      setUploading(false);
-      e.target.value = '';
-    }
-  };
-
-  const handleTemplateUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      await api.post(`/events/${eventId}/diplomas/upload`, formData);
-      toast.success('Plantilla subida correctamente');
-      fetchAll();
-    } catch (error) {
-      console.error('Error uploading template:', error);
-      toast.error('Error al subir plantilla');
-    }
-  };
-
-  const handleSendDiplomas = async () => {
-    if (!confirm('¿Enviar diplomas a todos los asistentes con check-in?')) return;
-    setSending(true);
-    try {
-      const response = await api.post(`/events/${eventId}/diplomas/send-batch`);
-      toast.success(`${response.data.sent} diplomas enviados`);
-    } catch (error) {
-      console.error('Error sending diplomas:', error);
-      toast.error('Error al enviar diplomas');
-    } finally {
-      setSending(false);
-    }
-  };
-  
-  const handleSendInvitations = async () => {
-    if (!confirm('¿Enviar invitaciones a todos los asistentes?')) return;
-    try {
-      await api.post(`/events/${eventId}/invitations`);
-      toast.success('Invitaciones enviadas');
-    } catch (error) {
-      console.error('Error sending invitations:', error);
-      toast.error('Error al enviar invitaciones');
-    }
-  };
-
-  // Staff Assignment Logic
-  const toggleStaffAssignment = (userId: string) => {
-    setAssignedStaff(prev => 
-      prev.includes(userId) 
-        ? prev.filter(id => id !== userId)
-        : [...prev, userId]
-    );
+      setActiveModal(null);
+    } catch { toast.error('Error al actualizar evento'); }
   };
 
   const saveStaffAssignment = async () => {
@@ -206,382 +109,374 @@ export default function EventDetail({ params }: { params: Promise<{ id: string }
       await api.patch(`/events/${eventId}`, { staffIds: assignedStaff });
       toast.success('Asignación de staff guardada');
       fetchAll();
-    } catch (error) {
-      console.error('Error saving staff:', error);
-      toast.error('Error al guardar asignación');
-    }
+      setActiveModal(null);
+    } catch { toast.error('Error al guardar asignación'); }
   };
 
-  if (loading) return <ProtectedRoute><div className="min-h-screen bg-[var(--background)] flex items-center justify-center"><Spinner /></div></ProtectedRoute>;
-  
-  if (notFound || !event) return (
-    <ProtectedRoute>
-      <div className="min-h-screen bg-[var(--background)] flex flex-col items-center justify-center text-white">
-        <h1 className="text-2xl font-bold mb-4">Evento no encontrado</h1>
-        <Link href="/dashboard" className="text-orange-500 hover:underline">Volver al Dashboard</Link>
-      </div>
-    </ProtectedRoute>
-  );
+  const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      await api.post(`/events/${eventId}/attendees/upload`, formData);
+      toast.success('Asistentes cargados correctamente');
+      fetchAll();
+    } catch { toast.error('Error al cargar CSV'); } 
+    finally { setUploading(false); e.target.value = ''; }
+  };
 
-  const filteredAttendees = attendees.filter(a => 
-    a.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    a.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleAddAttendee = async () => {
+    if (!newAttendeeForm.name || !newAttendeeForm.email) {
+      toast.error('Nombre y correo son obligatorios');
+      return;
+    }
+    setAddingAttendee(true);
+    try {
+      await api.post(`/events/${eventId}/attendees`, newAttendeeForm);
+      toast.success('Asistente añadido');
+      fetchAll();
+      setNewAttendeeForm({ name: '', email: '', org: '' });
+      setActiveModal('attendees');
+    } catch { toast.error('Error al añadir asistente'); }
+    finally { setAddingAttendee(false); }
+  };
+
+  const handleTemplateUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      await api.post(`/events/${eventId}/diplomas/upload`, formData);
+      toast.success('Plantilla subida correctamente');
+      fetchAll();
+    } catch { toast.error('Error al subir plantilla'); }
+  };
+
+  const handleSendDiplomas = async () => {
+    if (!confirm('¿Enviar diplomas a todos los asistentes válidos?')) return;
+    setSending(true);
+    try {
+      const response = await api.post(`/events/${eventId}/diplomas/send-batch`);
+      toast.success(`${response.data.sent} diplomas enviados`);
+    } catch { toast.error('Error al enviar diplomas'); } 
+    finally { setSending(false); }
+  };
+  
+  const handleSendInvitations = async () => {
+    if (!confirm('¿Enviar correos con QR ticket a los asistentes?')) return;
+    try {
+      await api.post(`/events/${eventId}/invitations`);
+      toast.success('Invitaciones enviadas');
+    } catch { toast.error('Error al enviar invitaciones'); }
+  };
+
+  if (loading) return <MainLayout><div className="flex h-[80vh] items-center justify-center"><Spinner /></div></MainLayout>;
+  if (notFound || !event) return <MainLayout><div className="flex h-[80vh] items-center justify-center text-zinc-500">Evento no encontrado</div></MainLayout>;
 
   return (
-    <ProtectedRoute>
-      <div className="min-h-screen bg-[var(--background)] text-white flex flex-col">
-        {/* Header */}
-        <div className="border-b border-[var(--border)] bg-[var(--surface-1)] sticky top-0 z-50 backdrop-blur-md bg-opacity-80">
-          <div className="max-w-7xl mx-auto px-4 py-4">
-             <div className="flex items-center gap-4 mb-4">
-               <Link href="/dashboard" className="p-2 hover:bg-white/10 rounded-full transition-colors">
-                 <ArrowLeft className="w-5 h-5 text-gray-400" />
-               </Link>
-               <div>
-                 <h1 className="text-xl font-bold">{event.name}</h1>
-                 <p className="text-xs text-gray-500">Gestión Integral del Evento</p>
+    <MainLayout>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fadeIn">
+        
+        {/* Header Setup */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+          <div className="flex items-center gap-4">
+            <Link href="/dashboard" className="p-2.5 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] rounded-xl transition-colors border border-[var(--border)] group">
+              <ArrowLeft className="w-5 h-5 text-zinc-400 group-hover:text-white transition-colors" />
+            </Link>
+            <div>
+              <div className="flex items-center gap-3">
+                 <h1 className="text-3xl font-bold tracking-tight text-white">{event.name}</h1>
+                 {event.status === 'PUBLISHED' && <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">En Curso</span>}
+              </div>
+              <div className="flex items-center gap-4 mt-2 text-sm text-zinc-400 font-medium">
+                <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4"/> {new Date(event.eventDate).toLocaleDateString()}</span>
+                <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4"/> {event.location}</span>
+              </div>
+            </div>
+          </div>
+          
+          <Link
+             href={`/events/${eventId}/check-in`}
+             className="flex items-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-orange-900/20"
+          >
+             <QrCode className="w-5 h-5" /> Iniciar Check-in
+          </Link>
+        </div>
+
+        {/* Global Metrics Row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+           <div className="bg-[var(--surface-1)] border border-[var(--border)] p-6 rounded-3xl relative overflow-hidden group hover:border-orange-500/30 transition-colors">
+              <div className="relative z-10">
+                 <p className="text-sm text-zinc-400 font-medium mb-1 flex items-center gap-2"><Users className="w-4 h-4"/> Total Registrados</p>
+                 <p className="text-4xl font-black text-white">{stats?.total || 0}</p>
+              </div>
+              <div className="absolute -right-6 -bottom-6 opacity-5 group-hover:scale-110 transition-transform"><Users className="w-32 h-32"/></div>
+           </div>
+           <div className="bg-[var(--surface-1)] border border-[var(--border)] p-6 rounded-3xl relative overflow-hidden group hover:border-emerald-500/30 transition-colors">
+              <div className="relative z-10">
+                 <p className="text-sm text-zinc-400 font-medium mb-1 flex items-center gap-2"><CheckCircle className="w-4 h-4 text-emerald-500"/> Check-in Exitoso</p>
+                 <div className="flex items-baseline gap-3">
+                    <p className="text-4xl font-black text-emerald-400">{stats?.checkedIn || 0}</p>
+                    <span className="text-sm font-bold text-emerald-500/50">
+                       {stats?.total ? Math.round((stats.checkedIn / stats.total) * 100) : 0}%
+                    </span>
+                 </div>
+              </div>
+              <div className="absolute -right-6 -bottom-6 opacity-5 group-hover:scale-110 transition-transform"><CheckCircle className="w-32 h-32"/></div>
+           </div>
+           <div className="bg-[var(--surface-1)] border border-[var(--border)] p-6 rounded-3xl relative overflow-hidden group">
+              <div className="relative z-10">
+                 <p className="text-sm text-zinc-400 font-medium mb-1 flex items-center gap-2"><BarChart className="w-4 h-4 text-blue-500"/> Operaciones</p>
+                 <button className="mt-2 w-full py-2.5 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] rounded-xl text-sm font-bold text-white transition-colors border border-[var(--border)]">
+                    Descargar Exportable CSV
+                 </button>
+              </div>
+           </div>
+        </div>
+
+        {/* Control Modules Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+           
+           {/* Modulo 1: Configuracion */}
+           <div className="bg-[var(--surface-1)] border border-[var(--border)] rounded-3xl p-6 flex flex-col hover:border-zinc-700 transition-colors">
+             <div className="w-12 h-12 rounded-2xl bg-zinc-800/80 border border-zinc-700 flex items-center justify-center mb-5 shrink-0">
+                <Settings className="w-6 h-6 text-zinc-400" />
+             </div>
+             <h3 className="text-xl font-bold text-white mb-2">Ajustes Base</h3>
+             <p className="text-sm text-zinc-500 mb-6 flex-1">Modifica nombre, fecha, lugar o habilita los diplomas para este evento.</p>
+             <button onClick={() => setActiveModal('config')} className="w-full py-3 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] border border-[var(--border)] rounded-xl text-sm font-bold transition-colors">
+               Editar Configuración
+             </button>
+           </div>
+
+           {/* Modulo 2: Asistentes e Invitaciones */}
+           <div className="bg-[var(--surface-1)] border border-[var(--border)] rounded-3xl p-6 flex flex-col lg:col-span-2 hover:border-zinc-700 transition-colors">
+             <div className="flex items-start justify-between mb-5">
+               <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">
+                  <Mail className="w-6 h-6 text-blue-500" />
                </div>
-               <div className="ml-auto flex gap-3">
-                 <Link
-                   href={`/events/${eventId}/check-in`}
-                   className="flex items-center gap-2 px-4 py-2 text-sm font-bold bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-all shadow-lg shadow-orange-900/20"
-                 >
-                   <QrCode className="w-4 h-4" /> Check-in
-                 </Link>
+               <div className="flex gap-2">
+                 <button onClick={() => setActiveModal('newAttendee')} className="px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/20 rounded-lg text-xs font-bold transition-colors">
+                   + Nuevo
+                 </button>
+                 <button onClick={() => setActiveModal('attendees')} className="px-4 py-2 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] border border-[var(--border)] rounded-lg text-xs font-bold transition-colors">
+                   Ver Directorio
+                 </button>
                </div>
              </div>
+             <h3 className="text-xl font-bold text-white mb-2">Asistentes & Accesos</h3>
+             <p className="text-sm text-zinc-500 mb-6 flex-1">Carga el listado (CSV) y envía a todos su ticket QR de acceso personalizado.</p>
              
-             {/* Stepper Navigation */}
-             {role === 'ADMIN' && (
-               <div className="flex items-center overflow-x-auto no-scrollbar gap-2 pb-2">
-                 {STEPS.map((step) => {
-                   const isActive = currentStep === step.id;
-                   const isCompleted = currentStep > step.id;
-                   return (
-                     <button
-                       type="button"
-                       key={step.id}
-                       onClick={() => setCurrentStep(step.id)}
-                       className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                         isActive 
-                           ? 'bg-orange-500 text-white shadow-lg shadow-orange-900/20 ring-1 ring-orange-400/50' 
-                           : isCompleted
-                             ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
-                             : 'bg-[var(--surface-2)] text-gray-400 hover:text-white hover:bg-[var(--surface-3)]'
-                       }`}
-                     >
-                       <step.icon className={`w-4 h-4 ${isActive ? 'text-white' : isCompleted ? 'text-emerald-500' : 'text-gray-500'}`} />
-                       {step.title}
-                       {isCompleted && <CheckCircle className="w-3.5 h-3.5 ml-1 text-emerald-500" />}
-                     </button>
-                   );
-                 })}
-               </div>
-             )}
-          </div>
-        </div>
-
-        {/* Content Area */}
-        <div className="flex-1 max-w-5xl mx-auto w-full p-6 animate-fadeIn">
-          
-          {/* STEP 1: CONFIGURATION */}
-          {currentStep === 1 && (
-            <div className="bg-[var(--surface-1)] rounded-2xl border border-[var(--border)] p-6 shadow-xl">
-              <div className="flex items-center gap-3 mb-6 border-b border-[var(--border)] pb-4">
-                 <div className="p-2 bg-orange-500/20 rounded-lg"><Settings className="w-5 h-5 text-orange-500"/></div>
-                 <h2 className="text-lg font-bold">Configuración General</h2>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-400">Nombre del Evento</label>
-                  <input 
-                    type="text" 
-                    value={editForm.name}
-                    onChange={(e) => setEditForm({...editForm, name: e.target.value})}
-                    className="w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-xl px-4 py-3 focus:ring-2 focus:ring-orange-500/50 outline-none transition-all"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-400">Ubicación</label>
-                  <input 
-                    type="text" 
-                    value={editForm.location}
-                    onChange={(e) => setEditForm({...editForm, location: e.target.value})}
-                    className="w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-xl px-4 py-3 focus:ring-2 focus:ring-orange-500/50 outline-none transition-all"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-400">Fecha y Hora</label>
-                  <input 
-                    type="datetime-local" 
-                    value={editForm.eventDate}
-                    onChange={(e) => setEditForm({...editForm, eventDate: e.target.value})}
-                    className="w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-xl px-4 py-3 focus:ring-2 focus:ring-orange-500/50 outline-none transition-all [color-scheme:dark]"
-                  />
-                </div>
-                 <div className="flex items-center gap-4 bg-[var(--surface-2)] p-4 rounded-xl border border-[var(--border)]">
-                   <div className="flex-1">
-                     <p className="font-bold text-sm">Habilitar Diplomas Digitales</p>
-                     <p className="text-xs text-gray-500">Permite enviar certificados a los asistentes.</p>
-                   </div>
-                   <input 
-                     type="checkbox"
-                     checked={editForm.diplomaEnabled}
-                     onChange={(e) => setEditForm({...editForm, diplomaEnabled: e.target.checked})}
-                     className="w-5 h-5 accent-orange-500 rounded cursor-pointer"
-                   />
-                 </div>
-              </div>
-              <div className="mt-8 flex justify-end">
-                <button type="button" onClick={handleUpdateEvent} className="px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl transition-all">Guardar Cambios</button>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 2: ATTENDEES */}
-          {currentStep === 2 && (
-            <div className="space-y-6">
-              <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-[var(--surface-1)] p-4 rounded-2xl border border-[var(--border)]">
-                 <div className="relative w-full md:w-96">
-                   <input
-                     type="text"
-                     placeholder="Buscar asistente..."
-                     value={searchQuery}
-                     onChange={(e) => setSearchQuery(e.target.value)}
-                     className="w-full pl-10 pr-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border)] rounded-xl text-sm focus:border-orange-500/50 outline-none transition-all"
-                   />
-                   <Users className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                 </div>
-                 <label className="cursor-pointer flex items-center gap-2 px-5 py-2.5 bg-violet-600/10 text-violet-400 border border-violet-600/20 rounded-xl hover:bg-violet-600/20 transition-all font-bold text-sm">
-                   <Upload className="w-4 h-4" />
-                   {uploading ? 'Cargando...' : 'Cargar CSV'}
+             <div className="grid grid-cols-2 gap-4">
+                <label className="cursor-pointer flex items-center justify-center gap-2 py-3 bg-blue-600/10 hover:bg-blue-600/20 text-blue-500 border border-blue-500/20 rounded-xl text-sm font-bold transition-all">
+                   <Upload className="w-4 h-4" /> {uploading ? 'Cargando...' : 'Subir CSV'}
                    <input type="file" accept=".csv" onChange={handleCsvUpload} className="hidden" disabled={uploading} />
-                 </label>
-              </div>
-
-               <div className="bg-[var(--surface-1)] rounded-2xl border border-[var(--border)] overflow-hidden">
-                 <table className="w-full text-sm text-left">
-                   <thead className="bg-[var(--surface-2)] text-gray-400 border-b border-[var(--border)]">
-                     <tr>
-                       <th className="px-6 py-4 font-medium">Nombre</th>
-                       <th className="px-6 py-4 font-medium hidden md:table-cell">Email</th>
-                       <th className="px-6 py-4 font-medium text-center">Estado</th>
-                     </tr>
-                   </thead>
-                   <tbody className="divide-y divide-[var(--border)]">
-                     {filteredAttendees.length === 0 ? (
-                       <tr><td colSpan={3} className="px-6 py-12 text-center text-gray-500">No hay asistentes encontrados.</td></tr>
-                     ) : (
-                       filteredAttendees.map(a => (
-                         <tr key={a.id} className="hover:bg-[var(--surface-2)]/50 transition-colors">
-                           <td className="px-6 py-4 font-medium">{a.name}</td>
-                           <td className="px-6 py-4 text-gray-400 hidden md:table-cell">{a.email}</td>
-                           <td className="px-6 py-4 text-center">
-                             {a.checkedIn ? (
-                               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                                 <CheckCircle className="w-3 h-3" /> Validado
-                               </span>
-                             ) : (
-                               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-500 border border-zinc-700">Pendiente</span>
-                             )}
-                           </td>
-                         </tr>
-                       ))
-                     )}
-                   </tbody>
-                 </table>
-               </div>
-            </div>
-          )}
-
-          {/* STEP 3: INVITES */}
-          {currentStep === 3 && (
-            <div className="bg-[var(--surface-1)] rounded-2xl border border-[var(--border)] p-8 text-center max-w-2xl mx-auto">
-               <div className="w-20 h-20 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                 <Mail className="w-10 h-10 text-blue-500" />
-               </div>
-               <h2 className="text-2xl font-bold mb-2">Enviar Invitaciones</h2>
-               <p className="text-gray-400 mb-8 max-w-md mx-auto">
-                 Se enviará un correo electrónico a todos los asistentes ({attendees.length}) con su código QR único para el ingreso.
-               </p>
-               <button 
-                 type="button"
-                 onClick={handleSendInvitations}
-                 className="inline-flex items-center gap-2 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-900/20"
-               >
-                 <Send className="w-4 h-4" /> Enviar Correos Ahora
-               </button>
-            </div>
-          )}
-
-          {/* STEP 4: STAFF ASSIGNMENT */}
-          {currentStep === 4 && (
-            <div className="bg-[var(--surface-1)] rounded-2xl border border-[var(--border)] p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-bold flex items-center gap-2">
-                  <Shield className="w-5 h-5 text-orange-500" /> 
-                  Asignar Staff al Evento
-                </h2>
-                <button type="button" onClick={saveStaffAssignment} className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-xl transition-all">
-                  Guardar Asignación
+                </label>
+                <button onClick={handleSendInvitations} className="flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-bold transition-transform active:scale-95 shadow-lg shadow-blue-900/20">
+                   <Send className="w-4 h-4" /> Enviar Invitaciones
                 </button>
-              </div>
+             </div>
+           </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                 {/* Available Staff */}
-                 <div>
-                   <h3 className="text-sm font-bold text-gray-400 mb-3 uppercase tracking-wider">Usuarios Disponibles</h3>
-                   <div className="bg-[var(--surface-2)] rounded-xl border border-[var(--border)] max-h-96 overflow-y-auto p-2 space-y-2">
-                     {staffList.filter(u => !assignedStaff.includes(u.id)).length === 0 && (
-                       <p className="text-center py-8 text-gray-500 text-sm">No hay más usuarios disponibles.</p>
-                     )}
-                     {staffList.filter(u => !assignedStaff.includes(u.id)).map(u => (
-                       <div key={u.id} className="flex items-center justify-between p-3 rounded-lg bg-[var(--surface-1)] border border-[var(--border)] group">
-                         <div>
-                            <p className="font-medium text-sm">{u.fullName || 'Sin nombre'}</p>
-                            <p className="text-xs text-gray-500">{u.email}</p>
-                         </div>
-                         <button type="button" onClick={() => toggleStaffAssignment(u.id)} className="p-2 bg-[var(--surface-2)] hover:bg-emerald-500/20 hover:text-emerald-500 rounded-lg transition-colors">
-                           <ChevronRight className="w-4 h-4" />
-                         </button>
-                       </div>
-                     ))}
-                   </div>
-                 </div>
+           {/* Modulo 3: Diplomas */}
+           <div className="bg-[var(--surface-1)] border border-[var(--border)] rounded-3xl p-6 flex flex-col hover:border-zinc-700 transition-colors">
+             <div className="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mb-5 shrink-0">
+                <FileText className="w-6 h-6 text-purple-400" />
+             </div>
+             <h3 className="text-xl font-bold text-white mb-2">Plantilla de Diploma</h3>
+             <p className="text-sm text-zinc-500 mb-6 flex-1">
+               {event.diplomaTemplateUrl 
+                 ? 'Plantilla configurada correctamente. Lista para envío.' 
+                 : 'Sube un PDF base para generar diplomas a quienes asistan.'}
+             </p>
+             <button onClick={() => setActiveModal('diplomas')} className="w-full py-3 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 text-purple-400 rounded-xl text-sm font-bold transition-colors">
+               Gestionar Diplomas
+             </button>
+           </div>
 
-                 {/* Assigned Staff */}
-                 <div>
-                   <h3 className="text-sm font-bold text-gray-400 mb-3 uppercase tracking-wider">Asignados ({assignedStaff.length})</h3>
-                   <div className="bg-emerald-900/10 rounded-xl border border-emerald-500/20 max-h-96 overflow-y-auto p-2 space-y-2">
-                     {assignedStaff.length === 0 && (
-                        <p className="text-center py-8 text-emerald-500/40 text-sm">Ningún staff asignado aún.</p>
-                     )}
-                     {staffList.filter(u => assignedStaff.includes(u.id)).map(u => (
-                       <div key={u.id} className="flex items-center justify-between p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                         <div>
-                            <p className="font-medium text-sm text-emerald-100">{u.fullName || 'Sin nombre'}</p>
-                            <p className="text-xs text-emerald-400/70">{u.email}</p>
-                         </div>
-                         <button type="button" onClick={() => toggleStaffAssignment(u.id)} className="p-2 hover:bg-red-500/20 hover:text-red-400 rounded-lg transition-colors text-emerald-600">
-                           <X className="w-4 h-4" />
-                         </button>
-                       </div>
-                     ))}
-                   </div>
-                 </div>
-              </div>
-            </div>
-          )}
+           {/* Modulo 4: Envio Diplomas Masivo */}
+           <div className="bg-[var(--surface-1)] border border-[var(--border)] rounded-3xl p-6 flex flex-col hover:border-zinc-700 transition-colors">
+             <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-5 shrink-0">
+                <Award className="w-6 h-6 text-emerald-500" />
+             </div>
+             <h3 className="text-xl font-bold text-white mb-2">Envío de Diplomas</h3>
+             <p className="text-sm text-zinc-500 mb-6 flex-1">Genera y entrega despachos a quienes tienen check-in confirmado.</p>
+             <button 
+                onClick={handleSendDiplomas}
+                disabled={!event.diplomaTemplateUrl || stats?.checkedIn === 0 || sending}
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:bg-zinc-800 disabled:text-zinc-500 text-white rounded-xl text-sm font-bold transition-transform active:scale-95 shadow-lg shadow-emerald-900/20"
+             >
+               {sending ? <Spinner /> : 'Despachar a Todos'}
+             </button>
+           </div>
 
-          {/* STEP 5: DIPLOMA SETUP */}
-          {currentStep === 5 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-               <div className="bg-[var(--surface-1)] rounded-2xl border border-[var(--border)] p-6">
-                 <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-                   <Upload className="w-5 h-5 text-indigo-500" /> Cargar Plantilla
-                 </h2>
-                 <p className="text-sm text-gray-400 mb-6">El sistema centrará automáticamente el nombre del asistente en el PDF que subas.</p>
-                 
-                 <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-700 rounded-2xl hover:bg-[var(--surface-2)] cursor-pointer transition-colors group">
-                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                     <FileText className="w-10 h-10 text-gray-500 group-hover:text-indigo-400 mb-3" />
-                     <p className="text-sm text-gray-400 group-hover:text-gray-300">
-                       <span className="font-semibold">Click para subir</span> o arrastra un PDF
-                     </p>
-                     <p className="text-xs text-gray-600 mt-1">PDF (MAX. 5MB)</p>
-                   </div>
-                   <input type="file" className="hidden" accept=".pdf" onChange={handleTemplateUpload} />
-                 </label>
+           {/* Modulo 5: Staff */}
+           {role === 'ADMIN' && (
+             <div className="bg-[var(--surface-1)] border border-[var(--border)] rounded-3xl p-6 flex flex-col hover:border-zinc-700 transition-colors">
+               <div className="w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center mb-5 shrink-0">
+                  <Shield className="w-6 h-6 text-orange-500" />
                </div>
-
-               <div className="bg-[var(--surface-1)] rounded-2xl border border-[var(--border)] p-6 flex flex-col items-center justify-center text-center">
-                 {event.diplomaTemplateUrl ? (
-                   <>
-                     <CheckCircle className="w-16 h-16 text-emerald-500 mb-4" />
-                     <h3 className="text-xl font-bold text-white mb-2">Plantilla Activa</h3>
-                     <p className="text-gray-400 mb-6 text-sm">Tu diploma está listo para ser generado.</p>
-                     <a
-                       href={`${process.env.NEXT_PUBLIC_API_URL}/events/${eventId}/diplomas/preview`}
-                       target="_blank"
-                       rel="noopener noreferrer"
-                       className="inline-flex items-center gap-2 px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-xl transition-all"
-                     >
-                       <Eye className="w-4 h-4" /> Ver Preview con Datos Ficticios
-                     </a>
-                   </>
-                 ) : (
-                   <>
-                     <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mb-4">
-                       <FileText className="w-8 h-8 text-gray-600" />
-                     </div>
-                     <p className="text-gray-500 font-medium">Aún no has subido una plantilla.</p>
-                   </>
-                 )}
-               </div>
-            </div>
-          )}
-
-          {/* STEP 6: SEND DIPLOMAS */}
-          {currentStep === 6 && (
-            <div className="bg-[var(--surface-1)] rounded-2xl border border-[var(--border)] p-8 text-center max-w-2xl mx-auto">
-               <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                 <Award className="w-10 h-10 text-emerald-500" />
-               </div>
-               <h2 className="text-2xl font-bold mb-2">Enviar Diplomas</h2>
-               <p className="text-gray-400 mb-8 max-w-md mx-auto">
-                 Se enviará el diploma generado a los <strong>{stats?.checkedIn || 0}</strong> asistentes que han validado su ingreso (Check-in).
-               </p>
-               
-               <div className="flex flex-col gap-4 max-w-xs mx-auto">
-                 <button 
-                   type="button"
-                   onClick={handleSendDiplomas}
-                   disabled={!event.diplomaTemplateUrl || stats?.checkedIn === 0 || sending}
-                   className="flex items-center justify-center gap-2 px-8 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all shadow-lg shadow-emerald-900/20"
-                 >
-                   {sending ? <Spinner /> : <><Send className="w-4 h-4" /> Enviar a Todos</>}
-                 </button>
-                 {!event.diplomaTemplateUrl && (
-                   <p className="text-xs text-red-400">⚠️ Falta cargar la plantilla en el paso anterior.</p>
-                 )}
-               </div>
-            </div>
-          )}
-
-          {/* STEP 7: REPORT */}
-          {currentStep === 7 && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                 <div className="bg-[var(--surface-1)] p-6 rounded-2xl border border-[var(--border)]">
-                   <p className="text-sm text-gray-400 mb-1">Total Confirmados</p>
-                   <p className="text-3xl font-bold text-white">{stats?.total || 0}</p>
-                 </div>
-                 <div className="bg-[var(--surface-1)] p-6 rounded-2xl border border-[var(--border)]">
-                   <p className="text-sm text-gray-400 mb-1">Total Asistieron</p>
-                   <p className="text-3xl font-bold text-emerald-400">{stats?.checkedIn || 0}</p>
-                 </div>
-                 <div className="bg-[var(--surface-1)] p-6 rounded-2xl border border-[var(--border)]">
-                   <p className="text-sm text-gray-400 mb-1">Porcentaje Asistencia</p>
-                   <p className="text-3xl font-bold text-orange-400">
-                     {stats ? Math.round((stats.checkedIn / (stats.total || 1)) * 100) : 0}%
-                   </p>
-                 </div>
-              </div>
-
-               <div className="bg-[var(--surface-1)] p-8 rounded-2xl border border-[var(--border)] text-center">
-                 <BarChart className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                 <h3 className="text-lg font-bold mb-2">Exportar Datos Finales</h3>
-                 <p className="text-gray-400 mb-6">Descarga un archivo CSV con el detalle de asistencia, hora de ingreso y estado de envío de diplomas.</p>
-                 <button type="button" className="px-6 py-2.5 border border-[var(--border)] hover:bg-[var(--surface-2)] text-white font-bold rounded-xl transition-all">
-                   Descargar Reporte CSV (Próximamente)
-                 </button>
-               </div>
-            </div>
-          )}
-
+               <h3 className="text-xl font-bold text-white mb-2">Control Staff</h3>
+               <p className="text-sm text-zinc-500 mb-6 flex-1">Acredita personal autorizado para leer QRs en los accesos.</p>
+               <button onClick={() => setActiveModal('staff')} className="w-full py-3 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] border border-[var(--border)] rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-2">
+                 Asignar Operarios <ChevronRight className="w-4 h-4"/>
+               </button>
+             </div>
+           )}
         </div>
       </div>
-    </ProtectedRoute>
+
+      {/* --- MODALS --- */}
+      
+      {/* Modal Base wrapper */}
+      {activeModal && (
+        <div className="fixed inset-0 z-[200] flex justify-end">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fadeIn" onClick={() => setActiveModal(null)} />
+          <div className="relative w-full max-w-md h-full bg-[var(--surface-1)] border-l border-[var(--border)] shadow-2xl animate-slideRight flex flex-col">
+             <div className="flex items-center justify-between p-6 border-b border-[var(--border)] bg-[var(--surface-2)]">
+               <h2 className="text-lg font-bold text-white">
+                 {activeModal === 'config' ? 'Ajustes del Evento' : 
+                  activeModal === 'staff' ? 'Asignación de Staff' : 
+                  activeModal === 'diplomas' ? 'Configurar Diplomas' : 
+                  activeModal === 'newAttendee' ? 'Añadir Asistente' :
+                  'Directorio de Asistentes'}
+               </h2>
+               <button onClick={() => setActiveModal(null)} className="p-2 hover:bg-[var(--surface-3)] rounded-lg transition-colors"><X className="w-5 h-5"/></button>
+             </div>
+             
+             <div className="p-6 flex-1 overflow-y-auto no-scrollbar">
+               
+               {/* Configuración */}
+               {activeModal === 'config' && (
+                 <div className="space-y-6">
+                    <div className="space-y-2">
+                       <label className="text-sm font-medium text-zinc-400">Nombre del Evento</label>
+                       <input type="text" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} className="w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-xl px-4 py-3 focus:border-orange-500/50 outline-none text-white transition-colors" />
+                    </div>
+                    <div className="space-y-2">
+                       <label className="text-sm font-medium text-zinc-400">Lugar/Dirección</label>
+                       <input type="text" value={editForm.location} onChange={e => setEditForm({...editForm, location: e.target.value})} className="w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-xl px-4 py-3 focus:border-orange-500/50 outline-none text-white transition-colors" />
+                    </div>
+                    <div className="space-y-2">
+                       <label className="text-sm font-medium text-zinc-400">Fecha y Hora</label>
+                       <input type="datetime-local" value={editForm.eventDate} onChange={e => setEditForm({...editForm, eventDate: e.target.value})} className="w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-xl px-4 py-3 focus:border-orange-500/50 outline-none text-white transition-colors [color-scheme:dark]" />
+                    </div>
+                    <div className="flex items-center justify-between bg-[var(--surface-2)] p-4 rounded-xl border border-[var(--border)] mt-4">
+                       <div>
+                         <p className="font-bold text-sm text-white">Certificados (Diplomas)</p>
+                         <p className="text-xs text-zinc-500">Habilita módulo post-evento</p>
+                       </div>
+                       <input type="checkbox" checked={editForm.diplomaEnabled} onChange={e => setEditForm({...editForm, diplomaEnabled: e.target.checked})} className="w-5 h-5 accent-orange-500 cursor-pointer" />
+                    </div>
+                    <button onClick={handleUpdateEvent} className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl mt-8 transition-colors shadow-lg">Guardar Cambios</button>
+                 </div>
+               )}
+
+               {/* Staff */}
+               {activeModal === 'staff' && (
+                 <div className="space-y-6">
+                   <p className="text-sm text-zinc-400">Usuarios con acceso a leer QR y validar ingresos en este evento.</p>
+                   <div className="space-y-2">
+                     {staffList.map(u => {
+                       const isAssigned = assignedStaff.includes(u.id);
+                       return (
+                         <div key={u.id} className={`flex items-center justify-between p-3 rounded-xl border transition-colors ${isAssigned ? 'bg-orange-500/10 border-orange-500/20' : 'bg-[var(--surface-2)] border-[var(--border)]'}`}>
+                           <div>
+                              <p className={`font-bold text-sm ${isAssigned ? 'text-orange-400' : 'text-white'}`}>{u.fullName || (u as User & { displayName?: string, name?: string }).displayName || (u as User & { displayName?: string, name?: string }).name || 'Sin nombre'}</p>
+                              <p className="text-xs text-zinc-500">{u.email}</p>
+                           </div>
+                           <button 
+                             onClick={() => setAssignedStaff(prev => isAssigned ? prev.filter(id => id !== u.id) : [...prev, u.id])}
+                             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${isAssigned ? 'bg-orange-500/20 text-orange-500 hover:bg-red-500/20 hover:text-red-400' : 'bg-[var(--surface-3)] text-zinc-400 hover:text-white'}`}
+                           >
+                             {isAssigned ? 'Quitar' : 'Asignar'}
+                           </button>
+                         </div>
+                       )
+                     })}
+                   </div>
+                   <button onClick={saveStaffAssignment} className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl mt-4 transition-colors">Guardar Asignaciones</button>
+                 </div>
+               )}
+
+               {/* Diplomas */}
+               {activeModal === 'diplomas' && (
+                 <div className="space-y-6">
+                    {event.diplomaTemplateUrl && (
+                      <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-2xl flex items-center justify-between mb-6">
+                         <div className="flex items-center gap-3 text-emerald-500">
+                           <CheckCircle className="w-5 h-5"/>
+                           <div>
+                             <p className="font-bold text-sm">Plantilla Operativa</p>
+                           </div>
+                         </div>
+                         <a href={`${process.env.NEXT_PUBLIC_API_URL}/events/${eventId}/diplomas/preview`} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-lg hover:bg-emerald-500/30 transition-colors">Ver Ejemplo</a>
+                      </div>
+                    )}
+
+                    <div className="border-2 border-dashed border-zinc-700 hover:border-purple-500/50 bg-[var(--surface-2)] rounded-3xl p-8 text-center transition-colors group">
+                       <input type="file" id="pdf-upload" accept=".pdf" className="hidden" onChange={handleTemplateUpload} />
+                       <label htmlFor="pdf-upload" className="cursor-pointer flex flex-col items-center">
+                          <Upload className="w-10 h-10 text-zinc-500 group-hover:text-purple-400 mb-3 transition-colors" />
+                          <p className="font-bold text-white mb-1">Subir nueva base en PDF</p>
+                          <p className="text-xs text-zinc-500">Max. 5MB. Horizontal recomendado.</p>
+                       </label>
+                    </div>
+                 </div>
+               )}
+
+               {/* Directorio de Asistentes */}
+               {activeModal === 'attendees' && (
+                 <div className="flex flex-col h-full">
+                    <input type="text" placeholder="Buscar nombre o correo..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-xl px-4 py-3 mb-4 focus:border-blue-500/50 outline-none text-white text-sm" />
+                    
+                    <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 border-t border-[var(--border)] pt-4">
+                       {attendees.filter(a => a.name.toLowerCase().includes(searchQuery.toLowerCase()) || a.email.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 ? (
+                         <div className="text-center text-zinc-500 text-sm py-10 italic">No tienes asistentes registrados aún.</div>
+                       ) : attendees.filter(a => a.name.toLowerCase().includes(searchQuery.toLowerCase()) || a.email.toLowerCase().includes(searchQuery.toLowerCase())).map(a => (
+                         <div key={a.id} className="flex items-center justify-between p-3 rounded-xl bg-[var(--surface-2)] border border-[var(--border)]">
+                            <div className="min-w-0 pr-2">
+                              <p className="font-bold text-white text-sm truncate">{a.name}</p>
+                              <p className="text-xs text-zinc-500 truncate">{a.email}</p>
+                            </div>
+                            <div className="shrink-0">
+                               {a.checkedIn ? <CheckCircle className="w-4 h-4 text-emerald-500"/> : <span className="text-[10px] uppercase font-bold text-zinc-500">Pendiente</span>}
+                            </div>
+                         </div>
+                       ))}
+                    </div>
+                 </div>
+               )}
+
+               {/* Añadir Asistente */}
+               {activeModal === 'newAttendee' && (
+                 <div className="space-y-6">
+                    <div className="space-y-4">
+                       <div className="space-y-2">
+                          <label className="text-sm font-medium text-zinc-400">Nombre Completo *</label>
+                          <input type="text" placeholder="Ej: Juan Pérez" value={newAttendeeForm.name} onChange={e => setNewAttendeeForm({...newAttendeeForm, name: e.target.value})} className="w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-xl px-4 py-3 focus:border-blue-500/50 outline-none text-white transition-colors" />
+                       </div>
+                       <div className="space-y-2">
+                          <label className="text-sm font-medium text-zinc-400">Correo Electrónico *</label>
+                          <input type="email" placeholder="Ej: juan@empresa.com" value={newAttendeeForm.email} onChange={e => setNewAttendeeForm({...newAttendeeForm, email: e.target.value})} className="w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-xl px-4 py-3 focus:border-blue-500/50 outline-none text-white transition-colors" />
+                       </div>
+                       <div className="space-y-2">
+                          <label className="text-sm font-medium text-zinc-400">Organización (Opcional)</label>
+                          <input type="text" placeholder="Ej: Google" value={newAttendeeForm.org} onChange={e => setNewAttendeeForm({...newAttendeeForm, org: e.target.value})} className="w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-xl px-4 py-3 focus:border-blue-500/50 outline-none text-white transition-colors" />
+                       </div>
+                    </div>
+                    <button onClick={handleAddAttendee} disabled={addingAttendee} className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold rounded-xl mt-8 transition-colors shadow-lg">
+                      {addingAttendee ? <Spinner /> : 'Guardar y Añadir'}
+                    </button>
+                 </div>
+               )}
+             </div>
+          </div>
+        </div>
+      )}
+    </MainLayout>
   );
 }

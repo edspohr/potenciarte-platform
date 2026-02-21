@@ -89,7 +89,8 @@ export default function LoginPage() {
         await linkWithCredential(userCredential.user, linkingCredential);
         toast.success('Cuenta vinculada exitosamente');
         router.push('/dashboard');
-      } catch (err: any) {
+      } catch (error: unknown) {
+        const err = error as { code?: string; customData?: { email?: string } };
         console.error('Link Error:', err);
         if (err.code === 'auth/wrong-password') {
           toast.error('Contraseña incorrecta');
@@ -135,10 +136,12 @@ export default function LoginPage() {
     try {
       await signInWithGoogle();
       toast.success('¡Bienvenido!');
-    } catch (err: any) {
+    } catch (error: unknown) {
+       const err = error as { code?: string; customData?: { email?: string } };
        console.error('Google Sign In Error:', err);
        if (err.code === 'auth/account-exists-with-different-credential') {
-          const credential = GoogleAuthProvider.credentialFromError(err);
+          // Cast the error explicitly for GoogleAuthProvider if needed, or use any locally just for the library function.
+          const credential = GoogleAuthProvider.credentialFromError(error as never);
           const email = err.customData?.email;
           if (credential && email) {
              setLinkingCredential(credential);

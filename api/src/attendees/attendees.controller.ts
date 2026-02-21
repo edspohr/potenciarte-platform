@@ -63,6 +63,15 @@ export class AttendeesController {
     return this.attendeesService.search(eventId, query || '');
   }
 
+  @Post()
+  @Roles('ADMIN')
+  async create(
+    @Param('eventId') eventId: string,
+    @Body() body: { email: string; name: string; org?: string; rut?: string },
+  ) {
+    return this.attendeesService.create(eventId, body);
+  }
+
   @Get()
   @Roles('ADMIN', 'STAFF')
   findAll(@Param('eventId') eventId: string) {

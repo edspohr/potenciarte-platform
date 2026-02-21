@@ -67,14 +67,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (firebaseUser) {
         try {
-          // Read the ID token result which contains the custom claims
+          // Always read true role from Firestore to prevent stale token claims from showing incorrect UI
+          const userRef = doc(db, 'users', firebaseUser.uid);
+          const userDoc = await getDoc(userRef);
+          let firestoreRole: string | null = null;
+          if (userDoc.exists()) {
+             firestoreRole = userDoc.data().role as string;
+          }
+
           let idTokenResult = await firebaseUser.getIdTokenResult();
           let userRole = idTokenResult.claims.role as string | undefined;
 
-          // If the role claim is missing, the backend hasn't synced this user yet.
-          if (!userRole) {
+          // If the token's claim doesn't match Firestore (or is missing), force a backend sync
+          if (userRole !== firestoreRole || !userRole) {
             const token = await firebaseUser.getIdToken();
-            const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
+            const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
             
             // Trigger backend sync which sets the custom claim based on the Firestore doc
             await fetch(`${apiBase}/api/auth/login`, {
@@ -88,9 +95,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             // Force refresh the token to obtain the newly attached claims
             idTokenResult = await firebaseUser.getIdTokenResult(true);
             userRole = idTokenResult.claims.role as string | undefined;
+            
+            // If firestoreRole was null (new user), we should refetch it now that the backend created it
+            if (!firestoreRole) {
+               const newUserDoc = await getDoc(userRef);
+               if (newUserDoc.exists()) firestoreRole = newUserDoc.data().role as string;
+            }
           }
 
-          setRole(userRole || 'STAFF');
+          setRole(firestoreRole || userRole || 'STAFF');
         } catch (error) {
           console.error('Error fetching/syncing user role:', error);
           setRole('STAFF');

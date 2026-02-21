@@ -68,7 +68,7 @@ export default function CheckInPage({ params }: { params: Promise<{ id: string }
         setFeedback({ type: 'error', message: 'Error de Conexión' });
       }
     }
-  }, [eventId]);
+  }, [eventId, user]);
 
   const onScanSuccess = useCallback((decodedText: string) => {
     if (decodedText !== lastScannedResult) {
@@ -76,7 +76,7 @@ export default function CheckInPage({ params }: { params: Promise<{ id: string }
       handleCheckIn(decodedText);
       setTimeout(() => setLastScannedResult(null), 3000);
     }
-  }, [lastScannedResult, handleCheckIn, user]);
+  }, [lastScannedResult, handleCheckIn]);
 
   useEffect(() => {
     if (activeTab === 'scan' && !scannerRef.current) {

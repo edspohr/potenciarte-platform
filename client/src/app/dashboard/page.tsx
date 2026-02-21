@@ -1,11 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import ProtectedRoute from '@/components/ProtectedRoute';
+import MainLayout from '@/components/layout/MainLayout';
 import api from '@/lib/api';
 import Link from 'next/link';
-import Image from 'next/image';
-import { Plus, Calendar, MapPin, LogOut, ArrowRight, LayoutDashboard, Settings, Globe, Upload, Trash2, X, AlertOctagon } from 'lucide-react';
+import { Plus, Calendar, MapPin, ArrowRight, Settings, Globe, Upload, Trash2, X, LayoutList, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import Spinner from '@/components/Spinner';
 import { toast } from 'sonner';
@@ -31,7 +30,7 @@ export default function Dashboard() {
   const [selectedDraft, setSelectedDraft] = useState<Event | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
-  const { signOut, user, role } = useAuth();
+  const { role } = useAuth();
 
   const fetchEvents = async () => {
     try {
@@ -50,19 +49,12 @@ export default function Dashboard() {
   }, []);
 
   const getStatusBadge = (status: string) => {
-    const styles: Record<string, string> = {
-      DRAFT: 'bg-zinc-800 text-zinc-400 border-zinc-700',
-      PUBLISHED: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-      COMPLETED: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    };
-    const labels: Record<string, string> = {
-      DRAFT: 'Borrador',
-      PUBLISHED: 'Publicado',
-      COMPLETED: 'Completado',
-    };
+    const isDraft = status === 'DRAFT';
     return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${styles[status] || styles.DRAFT}`}>
-        {labels[status] || status}
+      <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest border ${
+        isDraft ? 'bg-zinc-800 text-zinc-400 border-zinc-700' : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+      }`}>
+        {isDraft ? 'Configurando' : 'Activo'}
       </span>
     );
   };
@@ -105,229 +97,162 @@ export default function Dashboard() {
   };
 
   return (
-    <ProtectedRoute>
-      <div className="min-h-screen bg-[var(--background)] text-white">
-        {/* Navbar */}
-        <nav className="border-b border-[var(--border)] glass sticky top-0 z-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <div className="flex items-center space-x-3">
-                <Image src="/logo.png" alt="Potenciarte" width={32} height={32} />
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <LayoutDashboard className="w-4 h-4 text-zinc-500" />
-                    <span className="text-sm font-semibold text-zinc-300">Panel</span>
-                  </div>
-                  {role === 'ADMIN' && (
-                    <Link href="/analytics" className="flex items-center gap-2 text-zinc-500 hover:text-orange-500 transition-colors">
-                      <Globe className="w-4 h-4" />
-                      <span className="text-sm font-semibold">Analytics</span>
-                    </Link>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center space-x-5">
-                {role && (
-                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                    role === 'ADMIN' 
-                      ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' 
-                      : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                  }`}>
-                    {role === 'ADMIN' ? 'Admin' : 'Staff'}
-                  </span>
-                )}
-                <span className="text-xs text-zinc-500 hidden md:block">
-                  {user?.email}
-                </span>
-                <button
-                  onClick={signOut}
-                  className="flex items-center text-xs font-medium text-zinc-500 hover:text-red-400 transition-colors duration-300 gap-1.5"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  Salir
-                </button>
-              </div>
-            </div>
+    <MainLayout>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fadeIn">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Panel de Control</h1>
+            <p className="text-sm text-zinc-400">Gestiona y monitorea la operación de todos tus eventos.</p>
           </div>
-        </nav>
+          {role === 'ADMIN' && (
+            <Link
+              href="/events/new"
+              className="flex items-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-orange-900/20"
+            >
+              <Plus className="w-4 h-4" />
+              Nuevo Evento
+            </Link>
+          )}
+        </div>
 
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-          {/* Header */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4 animate-fadeIn">
-            <div>
-              <h1 className="text-3xl font-bold text-white mb-1">Mis Eventos</h1>
-              <p className="text-sm text-zinc-500">Gestiona y monitorea todos tus eventos.</p>
+        {/* Content Area */}
+        {loading ? (
+          <div className="flex justify-center items-center h-64"><Spinner /></div>
+        ) : events.length === 0 ? (
+          <div className="bg-[var(--surface-1)] border border-[var(--border)] rounded-3xl p-16 text-center animate-scaleIn">
+            <div className="w-20 h-20 bg-orange-500/10 border border-orange-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <LayoutList className="w-8 h-8 text-orange-500" />
             </div>
+            <h3 className="text-xl font-bold text-white mb-3">Tu agenda está vacía</h3>
+            <p className="text-sm text-zinc-400 mb-8 max-w-md mx-auto">
+              Aún no tienes eventos configurados. Comienza creando tu primer evento para emitir invitaciones QR y acreditar asistentes.
+            </p>
             {role === 'ADMIN' && (
-              <Link
-                href="/events/new"
-                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white text-sm font-semibold rounded-xl hover:from-orange-600 hover:to-orange-700 transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-[var(--shadow-glow-primary)]"
-              >
-                <Plus className="w-4 h-4" />
-                Crear Evento
+              <Link href="/events/new" className="inline-flex items-center gap-2 text-orange-500 hover:text-orange-400 font-bold transition-colors">
+                Comenzar <ArrowRight className="w-4 h-4" />
               </Link>
             )}
           </div>
-
-          {/* Content */}
-          {loading ? (
-            <Spinner />
-          ) : events.length === 0 ? (
-            <div className="premium-card p-16 text-center animate-scaleIn">
-              <div className="w-16 h-16 bg-[var(--surface-3)] rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <Calendar className="w-7 h-7 text-zinc-600" />
-              </div>
-              <h3 className="text-lg font-bold text-white mb-2">No hay eventos aún</h3>
-              <p className="text-sm text-zinc-500 mb-8 max-w-sm mx-auto">
-                Comienza creando tu primer evento para gestionar asistentes y generar diplomas.
-              </p>
-              {role === 'ADMIN' && (
-                <Link
-                  href="/events/new"
-                  className="inline-flex items-center text-orange-500 hover:text-orange-400 font-semibold text-sm gap-1.5 transition-colors"
-                >
-                  Crear Evento <ArrowRight className="w-4 h-4" />
-                </Link>
-              )}
+        ) : (
+          <div className="bg-[var(--surface-1)] rounded-3xl border border-[var(--border)] overflow-hidden shadow-2xl">
+            {/* List Header */}
+            <div className="hidden md:grid grid-cols-12 gap-4 p-5 bg-[var(--surface-2)] border-b border-[var(--border)] text-xs font-bold text-zinc-500 uppercase tracking-widest">
+              <div className="col-span-5">Información del Evento</div>
+              <div className="col-span-3">Fecha y Lugar</div>
+              <div className="col-span-2 text-center">Estado</div>
+              <div className="col-span-2 text-right">Acción</div>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-fadeIn">
+
+            {/* List Rows */}
+            <div className="divide-y divide-[var(--border)]">
               {events.map((event, index) => {
                 const status = (event.status || 'DRAFT').toUpperCase();
                 const isDraft = status === 'DRAFT';
-                
-                const cardContent = (
-                  <>
-                    <div className="flex items-start justify-between mb-5">
-                      <div className="bg-gradient-to-br from-orange-500/10 to-orange-600/5 p-3 rounded-xl group-hover:from-orange-500/20 group-hover:to-orange-600/10 transition-all duration-500">
-                        <Calendar className="w-5 h-5 text-orange-500" />
-                      </div>
-                      {getStatusBadge(status)}
-                    </div>
-                    
-                    <h2 className="text-lg font-bold text-white mb-3 line-clamp-1 group-hover:text-orange-400 transition-colors duration-300">
-                      {event.name}
-                    </h2>
-                    
-                    <div className="space-y-2.5 mt-auto">
-                      <div className="flex items-center text-zinc-500 text-xs font-medium">
-                        <Calendar className="w-3.5 h-3.5 mr-2 text-zinc-600" />
-                        {new Date(event.eventDate).toLocaleDateString('es-CL', {
-                          weekday: 'short',
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric'
-                        })}
-                      </div>
-                      <div className="flex items-center text-zinc-500 text-xs font-medium">
-                        <MapPin className="w-3.5 h-3.5 mr-2 text-zinc-600" />
-                        {event.location}
-                      </div>
-                    </div>
-
-                    <div className="mt-5 pt-4 border-t border-[var(--border)] flex items-center justify-between">
-                      <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">
-                        {isDraft ? 'Configuración' : (role === 'ADMIN' ? 'Administrar' : 'Operación')}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        {isDraft && role === 'ADMIN' ? (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setSelectedDraft(event);
-                            }}
-                            className="px-3 py-1 bg-zinc-800 text-white text-[10px] font-bold rounded-lg hover:bg-zinc-700 transition-colors"
-                          >
-                            Gestionar
-                          </button>
-                        ) : (
-                          <span className="text-xs text-zinc-400 group-hover:text-orange-500 transition-colors flex items-center gap-1.5 font-semibold">
-                            {role === 'ADMIN' ? 'Ver detalles' : 'Ir a Check-in'} <ArrowRight className="w-3 h-3" />
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </>
-                );
-
-                if (isDraft && role === 'ADMIN') {
-                  return (
-                    <div
-                      key={event.id}
-                      onClick={() => setSelectedDraft(event)}
-                      className={`group premium-card p-6 flex flex-col cursor-pointer stagger-${Math.min(index + 1, 5)} animate-slideUp`}
-                    >
-                      {cardContent}
-                    </div>
-                  );
-                }
 
                 return (
-                  <Link
-                    key={event.id}
-                    href={role === 'ADMIN' ? `/events/${event.id}` : `/events/${event.id}/check-in`}
-                    className={`group premium-card p-6 flex flex-col stagger-${Math.min(index + 1, 5)} animate-slideUp`}
-                  >
-                    {cardContent}
-                  </Link>
+                  <div key={event.id} className={`grid grid-cols-1 md:grid-cols-12 gap-4 p-5 items-center hover:bg-[var(--surface-2)]/50 transition-colors stagger-${Math.min(index + 1, 5)} animate-slideUp`}>
+                    
+                    {/* Event Info */}
+                    <div className="col-span-1 md:col-span-5 flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-[var(--surface-3)] border border-[var(--border)] flex items-center justify-center shrink-0">
+                        {isDraft ? <Settings className="w-5 h-5 text-zinc-500" /> : <CheckCircle className="w-5 h-5 text-emerald-500" />}
+                      </div>
+                      <div className="min-w-0">
+                        <h2 className="text-base font-bold text-white truncate">{event.name}</h2>
+                        <p className="text-xs text-zinc-500 mt-1 truncate">ID: {event.id.slice(0, 8).toUpperCase()}</p>
+                      </div>
+                    </div>
+
+                    {/* Date & Location */}
+                    <div className="col-span-1 md:col-span-3 space-y-1.5">
+                      <div className="flex items-center text-xs text-zinc-400 font-medium">
+                        <Calendar className="w-3.5 h-3.5 mr-2 text-zinc-600 shrink-0" />
+                        <span className="truncate">
+                          {new Date(event.eventDate).toLocaleDateString('es-CL', {
+                            weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
+                          })}
+                        </span>
+                      </div>
+                      <div className="flex items-center text-xs text-zinc-400 font-medium">
+                        <MapPin className="w-3.5 h-3.5 mr-2 text-zinc-600 shrink-0" />
+                        <span className="truncate">{event.location}</span>
+                      </div>
+                    </div>
+
+                    {/* Status Badge */}
+                    <div className="col-span-1 md:col-span-2 md:text-center mt-2 md:mt-0">
+                      {getStatusBadge(status)}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="col-span-1 md:col-span-2 flex justify-end mt-4 md:mt-0">
+                      {isDraft && role === 'ADMIN' ? (
+                        <button
+                          onClick={() => setSelectedDraft(event)}
+                          className="w-full md:w-auto px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold rounded-lg transition-colors border border-zinc-700"
+                        >
+                          Configurar
+                        </button>
+                      ) : (
+                        <Link
+                          href={role === 'ADMIN' ? `/events/${event.id}` : `/events/${event.id}/check-in`}
+                          className="w-full md:w-auto px-4 py-2 bg-orange-500/10 hover:bg-orange-500 text-orange-500 hover:text-white text-xs font-bold rounded-lg transition-colors border border-orange-500/20 text-center"
+                        >
+                          {role === 'ADMIN' ? 'Administrar' : 'Escanear QR'}
+                        </Link>
+                      )}
+                    </div>
+                  </div>
                 );
               })}
             </div>
-          )}
-        </main>
+          </div>
+        )}
 
-        {/* Draft Control Modal */}
+        {/* Draft Control Modal (preserved design but integrated) */}
         {selectedDraft && (
-          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div 
-              className="absolute inset-0 bg-black/70 backdrop-blur-md animate-fadeIn" 
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm animate-fadeIn" 
               onClick={() => !isPublishing && !isDeleting && setSelectedDraft(null)} 
             />
             
-            <div className="relative premium-card w-full max-w-lg overflow-hidden animate-scaleIn border-zinc-800 shadow-2xl">
-              {/* Modal Header */}
-              <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50">
+            <div className="relative bg-[var(--surface-1)] w-full max-w-lg overflow-hidden animate-scaleIn border border-[var(--border)] rounded-3xl shadow-2xl">
+              <div className="p-6 border-b border-[var(--border)] flex justify-between items-center bg-[var(--surface-2)]">
                 <div>
                   <h3 className="text-xl font-bold text-white leading-tight">{selectedDraft.name}</h3>
-                  <p className="text-xs text-zinc-500 mt-1 uppercase tracking-widest font-bold">Estado del Lanzamiento</p>
+                  <p className="text-xs text-zinc-500 mt-1 uppercase tracking-widest font-bold">Estado de Configuración</p>
                 </div>
                 <button 
                   type="button"
                   onClick={() => setSelectedDraft(null)}
                   disabled={isPublishing || isDeleting}
-                  className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-500 hover:text-white transition-colors disabled:opacity-30"
+                  className="p-2 hover:bg-[var(--surface-3)] rounded-lg text-zinc-500 hover:text-white transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               <div className="p-6">
-                {/* Stepper Implementation */}
                 {renderStepper(selectedDraft)}
 
-                {/* Modal Options Grid */}
                 <div className="grid grid-cols-1 gap-4">
-                  {/* Option A: Resume */}
                   <Link
                     href={`/events/${selectedDraft.id}`}
-                    onClick={() => setSelectedDraft(null)}
-                    className="group flex items-center gap-4 p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 hover:bg-indigo-500/10 hover:border-indigo-500/20 transition-all text-left"
+                    className="group bg-[var(--surface-2)] border border-[var(--border)] p-4 rounded-2xl flex items-center gap-4 hover:border-orange-500/40 transition-all"
                   >
-                    <div className="p-3 bg-indigo-500/20 rounded-xl text-indigo-400 group-hover:scale-110 transition-transform">
+                    <div className="w-12 h-12 bg-orange-500/10 rounded-xl flex items-center justify-center text-orange-500">
                       <Settings className="w-6 h-6" />
                     </div>
                     <div className="flex-1">
-                      <p className="font-bold text-indigo-100 italic">Configurar Detalles</p>
-                      <p className="text-xs text-indigo-300/60 mt-0.5">Sube asistentes o configura la plantilla.</p>
+                      <p className="font-bold text-white">Configurar Detalles</p>
+                      <p className="text-xs text-zinc-500 mt-0.5">Asistentes, staff, plantillas y reportes.</p>
                     </div>
-                    <ArrowRight className="w-5 h-5 text-indigo-500/40 group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight className="w-5 h-5 text-zinc-600 group-hover:text-orange-500 transition-colors" />
                   </Link>
 
-                  {/* Option B: Publish */}
                   <button
-                    type="button"
                     onClick={async () => {
                       setIsPublishing(true);
                       try {
@@ -335,58 +260,47 @@ export default function Dashboard() {
                         toast.success('¡Evento publicado exitosamente!');
                         setSelectedDraft(null);
                         fetchEvents();
-                      } catch (error) {
+                      } catch {
                         toast.error('Error al publicar el evento');
                       } finally {
                         setIsPublishing(false);
                       }
                     }}
                     disabled={isPublishing || isDeleting || !selectedDraft._progress?.hasAttendees}
-                    className="group flex items-center gap-4 p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 hover:bg-emerald-500/10 hover:border-emerald-500/20 transition-all text-left disabled:opacity-50"
+                    className="group bg-[var(--surface-2)] border border-[var(--border)] p-4 rounded-2xl flex items-center gap-4 hover:border-emerald-500/40 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <div className="p-3 bg-emerald-500/20 rounded-xl text-emerald-400 group-hover:scale-110 transition-transform">
+                    <div className="w-12 h-12 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500">
                       {isPublishing ? <Spinner /> : <Globe className="w-6 h-6" />}
                     </div>
                     <div className="flex-1">
-                      <p className="font-bold text-emerald-100 italic">Publicar Evento</p>
-                      <p className="text-xs text-emerald-300/60 mt-0.5">
-                        {!selectedDraft._progress?.hasAttendees 
-                          ? 'Debes cargar asistentes primero' 
-                          : 'Habilitar para registro y operaciones.'}
+                      <p className="font-bold text-white">Publicar Evento</p>
+                      <p className="text-xs text-zinc-500 mt-0.5">
+                        {!selectedDraft._progress?.hasAttendees ? 'Requiere cargar asistentes primero' : 'Activar operaciones y escáner.'}
                       </p>
                     </div>
-                    <Upload className="w-5 h-5 text-emerald-500/40 group-hover:-translate-y-1 transition-transform" />
+                    <Upload className="w-5 h-5 text-zinc-600 group-hover:text-emerald-500 transition-colors" />
                   </button>
 
-                  {/* Option C: Delete */}
                   <button
-                    type="button"
                     onClick={async () => {
-                      if (confirm('¿Estás seguro de que deseas eliminar este borrador?')) {
+                      if (confirm('¿Estás seguro de que deseas eliminar este borrador permanentemente?')) {
                         setIsDeleting(true);
                         try {
                           await api.delete(`/events/${selectedDraft.id}`);
                           toast.success('Borrador eliminado correctamente');
                           setSelectedDraft(null);
                           fetchEvents();
-                        } catch (error) {
-                          toast.error('Error al eliminar el borrador');
+                        } catch {
+                          toast.error('Error al eliminar');
                         } finally {
                           setIsDeleting(false);
                         }
                       }
                     }}
                     disabled={isPublishing || isDeleting}
-                    className="group flex items-center gap-4 p-4 rounded-2xl bg-red-500/5 border border-red-500/10 hover:bg-red-500/10 hover:border-red-500/20 transition-all text-left disabled:opacity-50"
+                    className="bg-red-500/5 hover:bg-red-500/10 border border-red-500/10 p-3 rounded-xl flex items-center justify-center gap-2 text-red-500/80 hover:text-red-400 text-xs font-bold transition-colors w-full mt-4"
                   >
-                    <div className="p-3 bg-red-500/20 rounded-xl text-red-400 group-hover:scale-110 transition-transform">
-                      {isDeleting ? <Spinner /> : <Trash2 className="w-6 h-6" />}
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-bold text-red-100 italic">Eliminar Borrador</p>
-                      <p className="text-xs text-red-300/60 mt-0.5">Borra permanentemente este evento.</p>
-                    </div>
-                    <AlertOctagon className="w-5 h-5 text-red-500/40 group-hover:animate-pulse" />
+                    {isDeleting ? <Spinner /> : <><Trash2 className="w-4 h-4" /> Eliminar Borrador</>}
                   </button>
                 </div>
               </div>
@@ -394,6 +308,6 @@ export default function Dashboard() {
           </div>
         )}
       </div>
-    </ProtectedRoute>
+    </MainLayout>
   );
 }

@@ -42,7 +42,7 @@ export default function AnalyticsPage() {
       const eventsRes = await api.get('/events');
       const eventsData = eventsRes.data;
       
-      const statsPromises = eventsData.map(async (e: any) => {
+      const statsPromises = eventsData.map(async (e: { id: string; name: string }) => {
         try {
           const statsRes = await api.get(`/events/${e.id}/attendees/stats`);
           return {

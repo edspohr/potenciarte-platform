@@ -6,14 +6,10 @@ import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api'; // Correct import path for api instance
 import { toast } from 'sonner';
 import {
-  Shield,
-  ShieldAlert,
-  ShieldCheck,
   User as UserIcon,
   Ban,
   CheckCircle,
   Loader2,
-  MoreVertical,
 } from 'lucide-react';
 
 interface User {
@@ -57,7 +53,7 @@ export default function AdminUsersPage() {
     try {
       await api.patch(`/users/${userId}/role`, { role: newRole });
       setUsers((prev) =>
-        prev.map((u) => (u.id === userId ? { ...u, role: newRole as any } : u))
+        prev.map((u) => (u.id === userId ? { ...u, role: newRole as User['role'] } : u))
       );
       toast.success('User role updated');
     } catch (error) {

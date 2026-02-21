@@ -158,6 +158,25 @@ export class AttendeesService {
     }
   }
 
+  async create(eventId: string, data: { email: string; name: string; org?: string; rut?: string }) {
+    const attendee = {
+      email: data.email,
+      name: data.name,
+      org: data.org || null,
+      rut: data.rut || null,
+      eventId,
+      checkedIn: false,
+      ticketSent: false,
+      diplomaSent: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    const collectionRef = this.db.collection('events').doc(eventId).collection('attendees');
+    const docRef = await collectionRef.add(attendee);
+    return { id: docRef.id, ...attendee };
+  }
+
+
   async findAll(eventId: string) {
     const snapshot = await this.db
       .collection('events')
